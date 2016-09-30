@@ -78,7 +78,12 @@ func (cli *Client) UpgradeServiceVersion(serviceName, runtimeVersion string) err
 	serviceUpgrade := &client.ServiceUpgrade{
 		Resource: client.Resource{},
 		InServiceStrategy: &client.InServiceUpgradeStrategy{
-			LaunchConfig: service.LaunchConfig,
+			// TODO: Figure out what the correct batch size and interval is.
+			// Maybe this should be a configurable parameter?
+			LaunchConfig:   service.LaunchConfig,
+			BatchSize:      1,
+			IntervalMillis: 10000,
+			StartFirst:     true,
 		},
 	}
 	_, err = cli.RancherClient.Service.ActionUpgrade(service, serviceUpgrade)
@@ -99,6 +104,11 @@ func (cli *Client) UpgradeServiceCodeVersion(serviceName, codeVersion string) er
 	serviceUpgrade := &client.ServiceUpgrade{
 		Resource: client.Resource{},
 		InServiceStrategy: &client.InServiceUpgradeStrategy{
+			// TODO: Figure out what the correct batch size and interval is.
+			// Maybe this should be a configurable parameter?
+			BatchSize:              1,
+			IntervalMillis:         10000,
+			StartFirst:             true,
 			SecondaryLaunchConfigs: service.SecondaryLaunchConfigs,
 		},
 	}
