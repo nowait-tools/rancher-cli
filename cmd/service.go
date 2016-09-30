@@ -1,11 +1,19 @@
 package cmd
 
 import (
-	"github.com/nowait/rancher/rancher"
+	"os"
+
+	"github.com/nowait/rancher-cli/rancher"
 	"github.com/urfave/cli"
 )
 
-func ServiceCommand(client *rancher.Client) cli.Command {
+var (
+	cattleUrl       = os.Getenv("CATTLE_URL")
+	cattleAccessKey = os.Getenv("CATTLE_ACCESS_KEY")
+	cattleSecret    = os.Getenv("CATTLE_SECRET_KEY")
+)
+
+func ServiceCommand() cli.Command {
 	return cli.Command{
 		Name:  "service",
 		Usage: "Operations on services",
@@ -22,6 +30,10 @@ func ServiceCommand(client *rancher.Client) cli.Command {
 					},
 				},
 				Action: func(c *cli.Context) error {
+					client, err := rancher.NewClient(cattleUrl, cattleAccessKey, cattleSecret)
+					if err != nil {
+						return err
+					}
 					return client.UpgradeServiceVersion(c.String("service"), c.String("tag"))
 				},
 			},
@@ -37,6 +49,10 @@ func ServiceCommand(client *rancher.Client) cli.Command {
 					},
 				},
 				Action: func(c *cli.Context) error {
+					client, err := rancher.NewClient(cattleUrl, cattleAccessKey, cattleSecret)
+					if err != nil {
+						return err
+					}
 					return client.UpgradeServiceCodeVersion(c.String("service"), c.String("tag"))
 				},
 			},
@@ -49,7 +65,12 @@ func ServiceCommand(client *rancher.Client) cli.Command {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					_, err := client.FinishServiceUpgrade(c.String("service"))
+					client, err := rancher.NewClient(cattleUrl, cattleAccessKey, cattleSecret)
+
+					if err != nil {
+						return err
+					}
+					_, err = client.FinishServiceUpgrade(c.String("service"))
 					return err
 				},
 			},
