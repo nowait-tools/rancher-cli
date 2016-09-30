@@ -2,7 +2,12 @@
 
 This project is a rancher cli that leverages the rancher api for the various automation we need for rancher.  Rancher currently lacks a sophisticated cli at the moment so this is the solution to tailor one to our needs at Nowait.
 
+## Usage
+
+Update with the correct instructions.
+
 ### TODO
+- [ ] Make this a docker image so users do not need to have go installed.
 - [ ] Make sure service upgrade-runtime and service upgrade-code commands rollback gracefully if upgrade takes too long.
 - [ ] Check for valid configuration (all environment variables necessary defined in service) before initiating an upgrade.
 - [x] All service upgrades must use `start before stopping` to ensure that no downtime occurs during service upgrade.
