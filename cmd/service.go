@@ -45,16 +45,13 @@ func ServiceCommand() cli.Command {
 						Name: "service",
 					},
 					cli.StringFlag{
+						Name: "service-like",
+					},
+					cli.StringFlag{
 						Name: "tag",
 					},
 				},
-				Action: func(c *cli.Context) error {
-					client, err := rancher.NewClient(cattleUrl, cattleAccessKey, cattleSecret)
-					if err != nil {
-						return err
-					}
-					return client.UpgradeServiceCodeVersion(c.String("service"), c.String("tag"))
-				},
+				Action: UpgradeCodeAction,
 			},
 			{
 				Name:  "upgrade-finish",
@@ -76,4 +73,16 @@ func ServiceCommand() cli.Command {
 			},
 		},
 	}
+}
+
+func UpgradeCodeAction(c *cli.Context) error {
+	client, err := rancher.NewClient(cattleUrl, cattleAccessKey, cattleSecret)
+	if err != nil {
+		return err
+	}
+
+	if name := c.String("service-like"); name != "" {
+		return client.UpgradeServiceWithNameLike(name, c.String("tag"))
+	}
+	return client.UpgradeServiceCodeVersion(c.String("service"), c.String("tag"))
 }

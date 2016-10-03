@@ -64,6 +64,21 @@ func (cli *Client) ServiceByName(name string) (*client.Service, error) {
 	return cli.RancherClient.Service.ById(services.Data[0].Id)
 }
 
+func (cli *Client) ServiceLikeName(likeName string) (services *client.ServiceCollection, err error) {
+	filters := make(map[string]interface{})
+	filters["name_like"] = likeName + "%"
+	// Do not include service load balancers
+	filters["kind"] = "service"
+	// TODO: Might need to include environment id here.
+	// If all users use environment specific keys that is fine
+	// if they don't it might cause problems.
+	services, err = cli.RancherClient.Service.List(&client.ListOpts{
+		Filters: filters,
+	})
+	fmt.Printf("Upgrading %d services\n", len(services.Data))
+	return
+}
+
 // TODO: Add integration test
 // If updating just launch config image do not overwrite the secondary launch configs
 func (cli *Client) UpgradeServiceVersion(serviceName, runtimeVersion string) error {
@@ -113,6 +128,33 @@ func (cli *Client) UpgradeServiceCodeVersion(serviceName, codeVersion string) er
 		},
 	}
 	_, err = cli.RancherClient.Service.ActionUpgrade(service, serviceUpgrade)
+
+	return err
+}
+
+func (cli *Client) UpgradeServiceWithNameLike(servicesLike, codeVersion string) error {
+	services, err := cli.ServiceLikeName(servicesLike)
+
+	if err != nil {
+		return err
+	}
+
+	for _, service := range services.Data {
+		service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"] = fmt.Sprintf("docker:%s", codeVersion)
+
+		serviceUpgrade := &client.ServiceUpgrade{
+			Resource: client.Resource{},
+			InServiceStrategy: &client.InServiceUpgradeStrategy{
+				// TODO: Figure out what the correct batch size and interval is.
+				// Maybe this should be a configurable parameter?
+				BatchSize:              1,
+				IntervalMillis:         10000,
+				StartFirst:             true,
+				SecondaryLaunchConfigs: service.SecondaryLaunchConfigs,
+			},
+		}
+		_, err = cli.RancherClient.Service.ActionUpgrade(&service, serviceUpgrade)
+	}
 
 	return err
 }
