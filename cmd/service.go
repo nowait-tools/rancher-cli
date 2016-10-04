@@ -50,6 +50,10 @@ func ServiceCommand() cli.Command {
 					cli.StringFlag{
 						Name: "tag",
 					},
+					cli.BoolFlag{
+						Name:  "wait",
+						Usage: "Wait for the upgrade to fully complete",
+					},
 				},
 				Action: UpgradeCodeAction,
 			},
@@ -81,8 +85,14 @@ func UpgradeCodeAction(c *cli.Context) error {
 		return err
 	}
 
-	if name := c.String("service-like"); name != "" {
-		return client.UpgradeServiceWithNameLike(name, c.String("tag"))
+	opts := rancher.UpgradeOpts{
+		Wait:        c.Bool("wait"),
+		ServiceLike: c.String("service-like"),
+		Service:     c.String("service"),
+		CodeTag:     c.String("tag"),
+	}
+	if name := opts.ServiceLike; name != "" {
+		return client.UpgradeServiceWithNameLike(opts)
 	}
 	return client.UpgradeServiceCodeVersion(c.String("service"), c.String("tag"))
 }

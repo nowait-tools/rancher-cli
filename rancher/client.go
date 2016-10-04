@@ -1,13 +1,29 @@
 package rancher
 
 import (
+	"errors"
 	"fmt"
+	"log"
+	"time"
 
 	"github.com/rancher/go-rancher/client"
 )
 
 type Client struct {
 	RancherClient *client.RancherClient
+}
+
+type UpgradeOpts struct {
+	Wait        bool
+	ServiceLike string
+	Service     string
+	CodeTag     string
+	RuntimeTag  string
+}
+
+type UpgradeResult struct {
+	Service *client.Service
+	Error   error
 }
 
 // NewClient grabs config necessary and sets an inited client or returns an error
@@ -114,9 +130,82 @@ func (cli *Client) UpgradeServiceCodeVersion(serviceName, codeVersion string) er
 		return err
 	}
 
+	serviceUpgrade := updateCodeImage(service, codeVersion)
+	_, err = cli.RancherClient.Service.ActionUpgrade(service, serviceUpgrade)
+
+	return err
+}
+
+func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
+	failed := false
+	services, err := cli.ServiceLikeName(opts.ServiceLike)
+
+	if err != nil {
+		return err
+	}
+
+	serviceCount := len(services.Data)
+	upgradeErrs := make(chan UpgradeResult, serviceCount)
+
+	for _, service := range services.Data {
+		go func(srv client.Service) {
+			serviceUpgrade := updateCodeImage(&srv, opts.CodeTag)
+			service, err := cli.RancherClient.Service.ActionUpgrade(&srv, serviceUpgrade)
+
+			if err != nil {
+				upgradeErrs <- UpgradeResult{
+					Service: &srv,
+					Error:   err,
+				}
+				return
+			}
+
+			if opts.Wait {
+				err = Wait(cli, service)
+				if err == nil {
+					_, err = cli.RancherClient.Service.ActionFinishupgrade(service)
+				}
+			}
+			upgradeErrs <- UpgradeResult{
+				Service: service,
+				Error:   err,
+			}
+		}(service)
+	}
+	count := 0
+	for {
+		select {
+		case result := <-upgradeErrs:
+			log.Printf("%v", result)
+			if result.Error != nil {
+				// Rollback upgrade, it failed
+				failed = true
+				if opts.Wait {
+					_, err := cli.RancherClient.Service.ActionRollback(result.Service)
+
+					if err != nil {
+						log.Fatalf("rollback failed with error: %v", err)
+					}
+				}
+			}
+			count++
+			if count == serviceCount {
+				if failed {
+					return errors.New("upgrading services failed")
+				}
+				return nil
+			}
+		default:
+			<-time.After(50 * time.Millisecond)
+		}
+	}
+	return nil
+}
+
+func updateCodeImage(service *client.Service, codeVersion string) *client.ServiceUpgrade {
 	service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"] = fmt.Sprintf("docker:%s", codeVersion)
 
-	serviceUpgrade := &client.ServiceUpgrade{
+	return &client.ServiceUpgrade{
 		Resource: client.Resource{},
 		InServiceStrategy: &client.InServiceUpgradeStrategy{
 			// TODO: Figure out what the correct batch size and interval is.
@@ -127,38 +216,19 @@ func (cli *Client) UpgradeServiceCodeVersion(serviceName, codeVersion string) er
 			SecondaryLaunchConfigs: service.SecondaryLaunchConfigs,
 		},
 	}
-	_, err = cli.RancherClient.Service.ActionUpgrade(service, serviceUpgrade)
-
-	return err
 }
 
-func (cli *Client) UpgradeServiceWithNameLike(servicesLike, codeVersion string) error {
-	services, err := cli.ServiceLikeName(servicesLike)
-
-	if err != nil {
-		return err
-	}
-
-	for _, service := range services.Data {
-		service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"] = fmt.Sprintf("docker:%s", codeVersion)
-
-		serviceUpgrade := &client.ServiceUpgrade{
-			Resource: client.Resource{},
-			InServiceStrategy: &client.InServiceUpgradeStrategy{
-				// TODO: Figure out what the correct batch size and interval is.
-				// Maybe this should be a configurable parameter?
-				BatchSize:              1,
-				IntervalMillis:         10000,
-				StartFirst:             true,
-				SecondaryLaunchConfigs: service.SecondaryLaunchConfigs,
-			},
+func Wait(cli *Client, srv *client.Service) error {
+	for {
+		if srv.Transitioning != "yes" {
+			return nil
 		}
-		_, err = cli.RancherClient.Service.ActionUpgrade(&service, serviceUpgrade)
 
+		time.Sleep(150 * time.Millisecond)
+
+		err := cli.RancherClient.Reload(&srv.Resource, srv)
 		if err != nil {
 			return err
 		}
 	}
-
-	return err
 }
