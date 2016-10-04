@@ -154,6 +154,10 @@ func (cli *Client) UpgradeServiceWithNameLike(servicesLike, codeVersion string) 
 			},
 		}
 		_, err = cli.RancherClient.Service.ActionUpgrade(&service, serviceUpgrade)
+
+		if err != nil {
+			return err
+		}
 	}
 
 	return err
