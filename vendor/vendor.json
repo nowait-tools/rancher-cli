@@ -1,0 +1,32 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "klfNfdEPsrWYLps2qBkLgfJsNYI=",
+			"origin": "github.com/rancher/go-rancher/vendor/github.com/gorilla/websocket",
+			"path": "github.com/gorilla/websocket",
+			"revision": "853abf4af7cf82fcaa05d041de7c56b40d7a1b17",
+			"revisionTime": "2016-05-29T16:22:06Z"
+		},
+		{
+			"checksumSHA1": "ljZrmD7pmMXAkGNfp6IEzj31fY8=",
+			"path": "github.com/joho/godotenv",
+			"revision": "4ed13390c0acd2ff4e371e64d8b97c8954138243",
+			"revisionTime": "2015-09-07T01:02:28Z"
+		},
+		{
+			"checksumSHA1": "jrLOpqvsL48DsDoquMtEVnDC2kw=",
+			"path": "github.com/rancher/go-rancher/client",
+			"revision": "853abf4af7cf82fcaa05d041de7c56b40d7a1b17",
+			"revisionTime": "2016-05-29T16:22:06Z"
+		},
+		{
+			"checksumSHA1": "jm802xmRmtkUSVCED5SiDwIe0Jo=",
+			"path": "github.com/urfave/cli",
+			"revision": "168c95418e66e019fe17b8f4f5c45aa62ff80e23",
+			"revisionTime": "2016-08-01T03:09:57Z"
+		}
+	],
+	"rootPath": "github.com/nowait/rancher-cli"
+}
