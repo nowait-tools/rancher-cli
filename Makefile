@@ -2,15 +2,16 @@
 
 PWD := `pwd`
 IMAGE_NAME := rancher-cli
-IMAGE_TAG := 0.2.0-rc1
+IMAGE_TAG := 0.1.0
 BIN := rancher-cli
+PACKAGE_PATH := github.com/nowait/rancher-cli
 
 build:
 	docker run -it \
 	    -v $(PWD):/go/src/github.com/nowait/rancher-cli \
 	    -e "GOOS=linux" \
 	    -e "GOARCH=amd64" \
-	    -w /go/src/github.com/nowait/rancher-cli golang:1.7-alpine \
+	    -w /go/src/$(PACKAGE_PATH)  golang:1.7-alpine \
         go build -o $(BIN)
 	docker build -t nowait/$(IMAGE_NAME):$(IMAGE_TAG) .
 
@@ -19,8 +20,8 @@ push:
 
 test:
 	docker run -it \
-	-v $(PWD):/go/src/github.com/nowait/rancher-cli \
-        -e "GOOS=linux" \
-        -e "GOARCH=amd64" \
-        -w /go/src/github.com/nowait/rancher-cli golang:1.7-alpine \
-        go test
+	    -v $(PWD):/go/src/github.com/nowait/rancher-cli \
+	    -e "GOOS=linux" \
+	    -e "GOARCH=amd64" \
+	    -w /go/src/$(PACKAGE_PATH)  golang:1.7-alpine \
+        go test ./...
