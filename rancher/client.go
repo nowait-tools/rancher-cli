@@ -87,9 +87,9 @@ func (cli *Client) ServiceLikeName(likeName string) (services *client.ServiceCol
 	filters["name_like"] = getServiceLikeQuery(likeName)
 	// Do not include service load balancers
 	filters["kind"] = SERVICE_TYPE_SERVICE
-	// TODO: Might need to include environment id here.
+	// TODO: Should filter include single environment.
 	// If all users use environment specific keys that is fine
-	// if they don't it might cause problems.
+	// if they don't it could update multiple environments.
 	services, err = cli.RancherClient.Service.List(&client.ListOpts{
 		Filters: filters,
 	})
@@ -97,16 +97,14 @@ func (cli *Client) ServiceLikeName(likeName string) (services *client.ServiceCol
 	return
 }
 
-// TODO: Add integration test
-// If updating just launch config image do not overwrite the secondary launch configs
-func (cli *Client) UpgradeServiceVersion(serviceName, runtimeVersion string) error {
-	service, err := cli.ServiceByName(serviceName)
+func (cli *Client) UpgradeServiceVersion(opts UpgradeOpts) error {
+	service, err := cli.ServiceByName(opts.Service)
 
 	if err != nil {
 		return err
 	}
 
-	service.LaunchConfig.ImageUuid = fmt.Sprintf("docker:%s", runtimeVersion)
+	service.LaunchConfig.ImageUuid = fmt.Sprintf("docker:%s", opts.RuntimeTag)
 
 	serviceUpgrade := &client.ServiceUpgrade{
 		Resource: client.Resource{},
@@ -124,15 +122,14 @@ func (cli *Client) UpgradeServiceVersion(serviceName, runtimeVersion string) err
 	return err
 }
 
-// TODO: Add integration test
-func (cli *Client) UpgradeServiceCodeVersion(serviceName, codeVersion string) error {
-	service, err := cli.ServiceByName(serviceName)
+func (cli *Client) UpgradeServiceCodeVersion(opts UpgradeOpts) error {
+	service, err := cli.ServiceByName(opts.Service)
 
 	if err != nil {
 		return err
 	}
 
-	serviceUpgrade := updateCodeImage(service, codeVersion)
+	serviceUpgrade := updateCodeImage(service, opts.CodeTag)
 	_, err = cli.RancherClient.Service.ActionUpgrade(service, serviceUpgrade)
 
 	return err

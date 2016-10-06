@@ -37,7 +37,11 @@ func ServiceCommand() cli.Command {
 					if err != nil {
 						return err
 					}
-					return client.UpgradeServiceVersion(c.String("service"), c.String("tag"))
+					opts := rancher.UpgradeOpts{
+						Service:    c.String("service"),
+						RuntimeTag: c.String("tag"),
+					}
+					return client.UpgradeServiceVersion(opts)
 				},
 			},
 			{
@@ -107,5 +111,5 @@ func UpgradeCodeAction(c *cli.Context) error {
 	if name := opts.ServiceLike; name != "" {
 		return client.UpgradeServiceWithNameLike(opts)
 	}
-	return client.UpgradeServiceCodeVersion(c.String("service"), c.String("tag"))
+	return client.UpgradeServiceCodeVersion(opts)
 }

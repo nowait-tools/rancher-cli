@@ -239,7 +239,11 @@ func TestUpgradeServiceCodeVersion(t *testing.T) {
 		},
 	}
 
-	err := cli.UpgradeServiceCodeVersion(serviceName, codeTag)
+	opts := UpgradeOpts{
+		Service: serviceName,
+		CodeTag: codeTag,
+	}
+	err := cli.UpgradeServiceCodeVersion(opts)
 
 	if err != nil {
 		t.Errorf("upgrading service with code version failed with %v", err)
@@ -295,7 +299,11 @@ func TestUpgradeServiceVersion(t *testing.T) {
 		},
 	}
 
-	err := cli.UpgradeServiceVersion(serviceName, codeTag)
+	opts := UpgradeOpts{
+		Service:    serviceName,
+		RuntimeTag: codeTag,
+	}
+	err := cli.UpgradeServiceVersion(opts)
 
 	if err != nil {
 		t.Errorf("finishing service upgrade failed with: %v", err)
