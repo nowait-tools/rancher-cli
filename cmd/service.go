@@ -105,8 +105,7 @@ func UpgradeCodeAction(c *cli.Context) error {
 		ServiceLike: c.String("service-like"),
 		Service:     c.String("service"),
 		CodeTag:     c.String("tag"),
-		// TODO: This should be passed in by the user or fallback to a sensible default
-		Interval: interval,
+		Interval:    interval,
 	}
 	if name := opts.ServiceLike; name != "" {
 		return client.UpgradeServiceWithNameLike(opts)

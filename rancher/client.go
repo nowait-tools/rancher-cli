@@ -109,8 +109,7 @@ func (cli *Client) UpgradeServiceVersion(opts UpgradeOpts) error {
 	serviceUpgrade := &client.ServiceUpgrade{
 		Resource: client.Resource{},
 		InServiceStrategy: &client.InServiceUpgradeStrategy{
-			// TODO: Figure out what the correct batch size and interval is.
-			// Maybe this should be a configurable parameter?
+			// TODO: this should used to value passed in from the UpgradeOpts
 			LaunchConfig:   service.LaunchConfig,
 			BatchSize:      1,
 			IntervalMillis: 10000,
@@ -207,8 +206,7 @@ func updateCodeImage(service *client.Service, codeVersion string) *client.Servic
 	return &client.ServiceUpgrade{
 		Resource: client.Resource{},
 		InServiceStrategy: &client.InServiceUpgradeStrategy{
-			// TODO: Figure out what the correct batch size and interval is.
-			// Maybe this should be a configurable parameter?
+			// TODO: this should used to value passed in from the UpgradeOpts
 			BatchSize:              1,
 			IntervalMillis:         10000,
 			StartFirst:             true,
