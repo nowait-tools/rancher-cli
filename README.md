@@ -15,3 +15,4 @@ Update with the correct instructions.
 - [ ] Provide validation on the image name and tag.  Currently expects full image name. Should probably just be the tag name like the --tag implies.
 - [ ] Provide option for service upgrade-runtime and service upgrade-code to persist upgrade. This should block until the service is deemed health or unhealth and take the corresponding action finish upgrade or rollback based on the outcome.
 - [ ] What should the batch size and interval be when upgraded?
+

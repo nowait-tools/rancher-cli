@@ -9,6 +9,14 @@ import (
 	"github.com/rancher/go-rancher/client"
 )
 
+const (
+	SERVICE_TYPE_SERVICE = "service"
+)
+
+var (
+	upgradePollInterval = 150 * time.Millisecond
+)
+
 type Client struct {
 	RancherClient *client.RancherClient
 }
@@ -19,6 +27,7 @@ type UpgradeOpts struct {
 	Service     string
 	CodeTag     string
 	RuntimeTag  string
+	Interval    time.Duration
 }
 
 type UpgradeResult struct {
@@ -43,7 +52,6 @@ func NewClient(cattleURL string, cattleAccessKey string, cattleSecretKey string)
 	}, nil
 }
 
-// TODO: Add test and validate that queried service is in state to receive finish upgrade
 func (cli *Client) FinishServiceUpgrade(serviceName string) (*client.Service, error) {
 	filters := make(map[string]interface{})
 	filters["name"] = serviceName
@@ -55,9 +63,6 @@ func (cli *Client) FinishServiceUpgrade(serviceName string) (*client.Service, er
 		return nil, err
 	}
 
-	if len(services.Data) != 1 {
-		panic("more than 1 service found for same name")
-	}
 	service, err := cli.RancherClient.Service.ActionFinishupgrade(&services.Data[0])
 
 	return service, err
@@ -74,17 +79,14 @@ func (cli *Client) ServiceByName(name string) (*client.Service, error) {
 		return nil, err
 	}
 
-	if len(services.Data) != 1 {
-		panic("more than 1 service found for same name")
-	}
-	return cli.RancherClient.Service.ById(services.Data[0].Id)
+	return &services.Data[0], nil
 }
 
 func (cli *Client) ServiceLikeName(likeName string) (services *client.ServiceCollection, err error) {
 	filters := make(map[string]interface{})
-	filters["name_like"] = likeName + "%"
+	filters["name_like"] = getServiceLikeQuery(likeName)
 	// Do not include service load balancers
-	filters["kind"] = "service"
+	filters["kind"] = SERVICE_TYPE_SERVICE
 	// TODO: Might need to include environment id here.
 	// If all users use environment specific keys that is fine
 	// if they don't it might cause problems.
@@ -161,7 +163,7 @@ func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
 			}
 
 			if opts.Wait {
-				err = Wait(cli, service)
+				err = Wait(cli, service, opts)
 				if err == nil {
 					_, err = cli.RancherClient.Service.ActionFinishupgrade(service)
 				}
@@ -176,12 +178,12 @@ func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
 	for {
 		select {
 		case result := <-upgradeErrs:
-			log.Printf("%v", result)
 			if result.Error != nil {
 				// Rollback upgrade, it failed
 				failed = true
+				fmt.Printf("service with name %s failed with: %v\n", result.Service.Name, result.Error)
 				if opts.Wait {
-					_, err := cli.RancherClient.Service.ActionRollback(result.Service)
+					_, err := cli.RancherClient.Service.ActionCancelupgrade(result.Service)
 
 					if err != nil {
 						log.Fatalf("rollback failed with error: %v", err)
@@ -218,17 +220,30 @@ func updateCodeImage(service *client.Service, codeVersion string) *client.Servic
 	}
 }
 
-func Wait(cli *Client, srv *client.Service) error {
-	for {
-		if srv.Transitioning != "yes" {
-			return nil
-		}
+func Wait(cli *Client, srv *client.Service, opts UpgradeOpts) error {
+	ch := make(chan error)
+	go func() {
+		<-time.After(opts.Interval * 15)
+		ch <- errors.New("finishing upgrade timed out")
+	}()
+	go func() {
+		for {
+			if srv.Transitioning != "yes" {
+				ch <- nil
+			}
 
-		time.Sleep(150 * time.Millisecond)
+			time.Sleep(upgradePollInterval)
 
-		err := cli.RancherClient.Reload(&srv.Resource, srv)
-		if err != nil {
-			return err
+			err := cli.RancherClient.Reload(&srv.Resource, srv)
+			if err != nil {
+				ch <- err
+			}
 		}
-	}
+	}()
+
+	return <-ch
+}
+
+func getServiceLikeQuery(serviceName string) string {
+	return serviceName + "%"
 }
