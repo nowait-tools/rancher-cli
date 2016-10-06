@@ -12,72 +12,80 @@ import (
 var serviceName = "name"
 var codeTag = "image-name:1.0"
 
+type NoopService struct{}
+
+func (srv *NoopService) List(opts *client.ListOpts) (*client.ServiceCollection, error) {
+	return nil, nil
+}
+func (srv *NoopService) Create(opts *client.Service) (*client.Service, error) {
+	return nil, nil
+}
+func (srv *NoopService) Update(existing *client.Service, updates interface{}) (*client.Service, error) {
+	return nil, nil
+}
+func (srv *NoopService) ById(id string) (*client.Service, error) {
+	return nil, nil
+}
+func (srv *NoopService) Delete(container *client.Service) error {
+	return nil
+}
+func (srv *NoopService) ActionActivate(*client.Service) (*client.Service, error) {
+	return nil, nil
+}
+func (srv *NoopService) ActionAddservicelink(*client.Service, *client.AddRemoveServiceLinkInput) (*client.Service, error) {
+	return nil, nil
+}
+func (srv *NoopService) ActionCancelrollback(*client.Service) (*client.Service, error) {
+	return nil, nil
+}
+func (srv *NoopService) ActionCancelupgrade(*client.Service) (*client.Service, error) {
+	return nil, nil
+}
+func (srv *NoopService) ActionCreate(*client.Service) (*client.Service, error) {
+	return nil, nil
+}
+func (srv *NoopService) ActionDeactivate(*client.Service) (*client.Service, error) {
+	return nil, nil
+}
+func (srv *NoopService) ActionFinishupgrade(*client.Service) (*client.Service, error) {
+	return nil, nil
+}
+func (srv *NoopService) ActionRemove(*client.Service) (*client.Service, error) {
+	return nil, nil
+}
+func (srv *NoopService) ActionRemoveservicelink(*client.Service, *client.AddRemoveServiceLinkInput) (*client.Service, error) {
+	return nil, nil
+}
+func (srv *NoopService) ActionRestart(*client.Service, *client.ServiceRestart) (*client.Service, error) {
+	return nil, nil
+}
+func (srv *NoopService) ActionRollback(*client.Service) (*client.Service, error) {
+	return nil, nil
+}
+func (srv *NoopService) ActionSetservicelinks(*client.Service, *client.SetServiceLinksInput) (*client.Service, error) {
+	return nil, nil
+}
+
+func (srv *NoopService) ActionUpdate(*client.Service) (*client.Service, error) {
+	return nil, nil
+}
+
+func (srv *NoopService) ActionUpgrade(*client.Service, *client.ServiceUpgrade) (*client.Service, error) {
+	return nil, nil
+}
+
 type FailedService struct {
 	ListOpts *client.ListOpts
+	NoopService
 }
 
 func (srv *FailedService) List(opts *client.ListOpts) (*client.ServiceCollection, error) {
 	return nil, errors.New("retrieving services failed with error")
 }
-func (srv *FailedService) Create(opts *client.Service) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *FailedService) Update(existing *client.Service, updates interface{}) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *FailedService) ById(id string) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *FailedService) Delete(container *client.Service) error {
-	return nil
-}
-func (srv *FailedService) ActionActivate(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *FailedService) ActionAddservicelink(*client.Service, *client.AddRemoveServiceLinkInput) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *FailedService) ActionCancelrollback(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *FailedService) ActionCancelupgrade(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *FailedService) ActionCreate(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *FailedService) ActionDeactivate(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *FailedService) ActionFinishupgrade(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *FailedService) ActionRemove(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *FailedService) ActionRemoveservicelink(*client.Service, *client.AddRemoveServiceLinkInput) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *FailedService) ActionRestart(*client.Service, *client.ServiceRestart) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *FailedService) ActionRollback(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *FailedService) ActionSetservicelinks(*client.Service, *client.SetServiceLinksInput) (*client.Service, error) {
-	return nil, nil
-}
-
-func (srv *FailedService) ActionUpdate(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-
-func (srv *FailedService) ActionUpgrade(*client.Service, *client.ServiceUpgrade) (*client.Service, error) {
-	return nil, nil
-}
 
 type SuccessfulService struct {
 	ListOpts *client.ListOpts
+	NoopService
 }
 
 func (srv *SuccessfulService) List(opts *client.ListOpts) (*client.ServiceCollection, error) {
@@ -103,72 +111,6 @@ func (srv *SuccessfulService) List(opts *client.ListOpts) (*client.ServiceCollec
 			},
 		},
 	}, nil
-}
-
-func (srv *SuccessfulService) Create(opts *client.Service) (*client.Service, error) {
-	return nil, nil
-}
-
-func (srv *SuccessfulService) Update(existing *client.Service, updates interface{}) (*client.Service, error) {
-	return nil, nil
-}
-
-func (srv *SuccessfulService) ById(id string) (*client.Service, error) {
-	return nil, nil
-}
-
-func (srv *SuccessfulService) Delete(container *client.Service) error {
-	return nil
-}
-
-func (srv *SuccessfulService) ActionActivate(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-
-func (srv *SuccessfulService) ActionAddservicelink(*client.Service, *client.AddRemoveServiceLinkInput) (*client.Service, error) {
-	return nil, nil
-}
-
-func (srv *SuccessfulService) ActionCancelrollback(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-
-func (srv *SuccessfulService) ActionCancelupgrade(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-
-func (srv *SuccessfulService) ActionCreate(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-
-func (srv *SuccessfulService) ActionDeactivate(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-
-func (srv *SuccessfulService) ActionFinishupgrade(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-
-func (srv *SuccessfulService) ActionRemove(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-
-func (srv *SuccessfulService) ActionRemoveservicelink(*client.Service, *client.AddRemoveServiceLinkInput) (*client.Service, error) {
-	return nil, nil
-}
-
-func (srv *SuccessfulService) ActionRestart(*client.Service, *client.ServiceRestart) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *SuccessfulService) ActionRollback(*client.Service) (*client.Service, error) {
-	return nil, nil
-}
-func (srv *SuccessfulService) ActionSetservicelinks(*client.Service, *client.SetServiceLinksInput) (*client.Service, error) {
-	return nil, nil
-}
-
-func (srv *SuccessfulService) ActionUpdate(*client.Service) (*client.Service, error) {
-	return nil, nil
 }
 
 func (srv *SuccessfulService) ActionUpgrade(service *client.Service, upgrade *client.ServiceUpgrade) (*client.Service, error) {
