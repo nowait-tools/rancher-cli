@@ -148,7 +148,7 @@ func (srv *ServiceLikeName) List(opts *client.ListOpts) (*client.ServiceCollecti
 
 func TestServiceByName(t *testing.T) {
 	cli := Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &FailedService{},
 		},
 	}
@@ -162,7 +162,7 @@ func TestServiceByName(t *testing.T) {
 
 func TestSuccessfulServiceByName(t *testing.T) {
 	cli := Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &SuccessfulService{},
 		},
 	}
@@ -176,7 +176,7 @@ func TestSuccessfulServiceByName(t *testing.T) {
 
 func TestUpgradeServiceCodeVersion(t *testing.T) {
 	cli := Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &SuccessfulService{},
 		},
 	}
@@ -194,7 +194,7 @@ func TestUpgradeServiceCodeVersion(t *testing.T) {
 
 func TestFinishServiceUpgradeFailed(t *testing.T) {
 	cli := Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &FailedService{},
 		},
 	}
@@ -208,7 +208,7 @@ func TestFinishServiceUpgradeFailed(t *testing.T) {
 
 func TestFinishServiceUpgrade(t *testing.T) {
 	cli := Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &SuccessfulService{},
 		},
 	}
@@ -222,7 +222,7 @@ func TestFinishServiceUpgrade(t *testing.T) {
 
 func TestServiceLikeName(t *testing.T) {
 	cli := Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &ServiceLikeName{},
 		},
 	}
@@ -236,7 +236,7 @@ func TestServiceLikeName(t *testing.T) {
 
 func TestUpgradeServiceVersion(t *testing.T) {
 	cli := Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &UpgradeServiceService{},
 		},
 	}
@@ -260,7 +260,7 @@ func TestWaitTimesOutWhenUpgradeTakesTooLong(t *testing.T) {
 		Interval: time.Millisecond,
 	}
 	cli := &Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &UpgradeServiceService{},
 		},
 	}
@@ -282,7 +282,7 @@ func TestWaitReturnsNilWhenServiceIsNoLongerTransitioning(t *testing.T) {
 		Interval: time.Millisecond,
 	}
 	cli := &Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &UpgradeServiceService{},
 		},
 	}

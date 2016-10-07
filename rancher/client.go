@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/nowait/rancher-cli/rancher/config"
 	"github.com/rancher/go-rancher/client"
 )
 
@@ -19,6 +20,7 @@ var (
 
 type Client struct {
 	RancherClient *client.RancherClient
+	Validator     config.Validator
 }
 
 type UpgradeOpts struct {
@@ -218,7 +220,7 @@ func updateCodeImage(service *client.Service, codeVersion string) *client.Servic
 func Wait(cli *Client, srv *client.Service, opts UpgradeOpts) error {
 	ch := make(chan error)
 	go func() {
-		<-time.After(opts.Interval * 15)
+		<-time.After(opts.Interval * 20)
 		ch <- errors.New("finishing upgrade timed out")
 	}()
 	go func() {
