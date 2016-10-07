@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/kr/pretty"
+	"github.com/nowait/rancher-cli/rancher/config"
 	"github.com/rancher/go-rancher/client"
 )
 
@@ -152,6 +153,12 @@ func (srv *ServiceLikeName) List(opts *client.ListOpts) (*client.ServiceCollecti
 	}, nil
 }
 
+type FailedValidator struct{}
+
+func (val *FailedValidator) Validate(lc *client.LaunchConfig) error {
+	return errors.New("validation has failed")
+}
+
 func TestServiceByName(t *testing.T) {
 	cli := Client{
 		RancherClient: &client.RancherClient{
@@ -222,21 +229,41 @@ func TestServiceLikeName(t *testing.T) {
 	}
 }
 
-func TestUpgradeServiceVersion(t *testing.T) {
+func TestUpgradeService(t *testing.T) {
 	cli := Client{
 		RancherClient: &client.RancherClient{
 			Service: &UpgradeServiceService{},
 		},
+		Validator: &config.NoopValidator{},
 	}
 
 	opts := UpgradeOpts{
 		Service:    serviceName,
 		RuntimeTag: codeTag,
 	}
-	err := cli.UpgradeService(opts)
+	_, err := cli.UpgradeService(opts)
 
 	if err != nil {
-		t.Errorf("finishing service upgrade failed with: %v", err)
+		t.Errorf("service upgrade failed with: %v", err)
+	}
+}
+
+func TestUpgradeServiceFailsWhenValidationFails(t *testing.T) {
+	cli := Client{
+		RancherClient: &client.RancherClient{
+			Service: &UpgradeServiceService{},
+		},
+		Validator: &FailedValidator{},
+	}
+
+	opts := UpgradeOpts{
+		Service:    serviceName,
+		RuntimeTag: codeTag,
+	}
+	_, err := cli.UpgradeService(opts)
+
+	if err == nil {
+		t.Errorf("service upgrade should have failed")
 	}
 }
 

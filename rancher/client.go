@@ -38,7 +38,7 @@ type UpgradeResult struct {
 }
 
 // NewClient grabs config necessary and sets an inited client or returns an error
-func NewClient(cattleURL string, cattleAccessKey string, cattleSecretKey string) (*Client, error) {
+func NewClient(cattleURL string, cattleAccessKey string, cattleSecretKey string, envFile string) (*Client, error) {
 	apiClient, err := client.NewRancherClient(&client.ClientOpts{
 		Url:       cattleURL,
 		AccessKey: cattleAccessKey,
@@ -49,9 +49,20 @@ func NewClient(cattleURL string, cattleAccessKey string, cattleSecretKey string)
 		return nil, err
 	}
 
-	return &Client{
-		RancherClient: apiClient,
-	}, nil
+	if envFile != "" {
+		return &Client{
+			RancherClient: apiClient,
+			Validator: &config.EnvironmentValidator{
+				EnvFilePath: envFile,
+			},
+		}, nil
+
+	} else {
+		return &Client{
+			RancherClient: apiClient,
+			Validator:     &config.NoopValidator{},
+		}, nil
+	}
 }
 
 func (cli *Client) FinishServiceUpgrade(serviceName string) (*client.Service, error) {
@@ -102,19 +113,24 @@ func (cli *Client) ServiceLikeName(likeName string) (services *client.ServiceCol
 	return
 }
 
-func (cli *Client) UpgradeService(opts UpgradeOpts) error {
+func (cli *Client) UpgradeService(opts UpgradeOpts) (*client.Service, error) {
 	service, err := cli.ServiceByName(opts.Service)
 
 	if err != nil {
-		return err
+		return service, err
+	}
+
+	if err = cli.Validator.Validate(service.LaunchConfig); err != nil {
+		return service, err
 	}
 
 	serviceUpgrade := UpdateLaunchConfig(service, opts)
-	_, err = cli.RancherClient.Service.ActionUpgrade(service, serviceUpgrade)
+	service, err = cli.RancherClient.Service.ActionUpgrade(service, serviceUpgrade)
 
-	return err
+	return service, err
 }
 
+// TODO: Simplify this method and test it
 func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
 	failed := false
 	services, err := cli.ServiceLikeName(opts.ServiceLike)
@@ -127,9 +143,9 @@ func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
 	upgradeErrs := make(chan UpgradeResult, serviceCount)
 
 	for _, service := range services.Data {
-		go func(srv client.Service) {
-			serviceUpgrade := UpdateLaunchConfig(&srv, opts)
-			service, err := cli.RancherClient.Service.ActionUpgrade(&srv, serviceUpgrade)
+		go func(srv client.Service, opts UpgradeOpts) {
+			opts.Service = srv.Name
+			service, err := cli.UpgradeService(opts)
 
 			if err != nil {
 				upgradeErrs <- UpgradeResult{
@@ -149,7 +165,7 @@ func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
 				Service: service,
 				Error:   err,
 			}
-		}(service)
+		}(service, opts)
 	}
 	count := 0
 	for {

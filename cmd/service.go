@@ -32,6 +32,10 @@ func ServiceCommand() cli.Command {
 						Name: "service-like",
 					},
 					cli.StringFlag{
+						Name:  "env-file",
+						Usage: "File containing environment variables that will be used for validating that the Rancher service has all variables defined",
+					},
+					cli.StringFlag{
 						Name: "runtime-tag",
 					},
 					cli.StringFlag{
@@ -57,7 +61,7 @@ func ServiceCommand() cli.Command {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					client, err := rancher.NewClient(cattleUrl, cattleAccessKey, cattleSecret)
+					client, err := rancher.NewClient(cattleUrl, cattleAccessKey, cattleSecret, "")
 
 					if err != nil {
 						return err
@@ -71,7 +75,9 @@ func ServiceCommand() cli.Command {
 }
 
 func UpgradeAction(c *cli.Context) error {
-	client, err := rancher.NewClient(cattleUrl, cattleAccessKey, cattleSecret)
+
+	envFile := c.String("env-file")
+	client, err := rancher.NewClient(cattleUrl, cattleAccessKey, cattleSecret, envFile)
 	if err != nil {
 		return err
 	}
@@ -91,5 +97,8 @@ func UpgradeAction(c *cli.Context) error {
 	if name := opts.ServiceLike; name != "" {
 		return client.UpgradeServiceWithNameLike(opts)
 	}
-	return client.UpgradeService(opts)
+
+	_, err = client.UpgradeService(opts)
+
+	return err
 }
