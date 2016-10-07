@@ -2,41 +2,41 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/rancher/go-rancher/client"
 )
 
 func TestGetEnvsReturnsAllEnvsInEnvFile(t *testing.T) {
-	envs, err := GetEnvs("../../fixtures/.env")
+	validator := EnvironmentValidator{
+		EnvFilePath: "../../fixtures/.env",
+	}
+	envs, err := validator.getEnvs()
 
-	if err != nil || len(envs) != 5 {
+	if err != nil || len(envs) != 3 {
 		t.Errorf("variable envs should contain 5 environment variables")
 	}
 }
 
-func TestValidateEnvs(t *testing.T) {
+func TestValidate(t *testing.T) {
 	cases := []struct {
-		LaunchConfig *client.LaunchConfig
-		envs         []string
-		Error        error
+		LaunchConfig         *client.LaunchConfig
+		EnvironmentValidator EnvironmentValidator
+		Error                error
 	}{
 		{
 			LaunchConfig: getLaunchConfigWithEnvs("ENV_1", "ENV_2", "ENV_3"),
-			envs: []string{
-				"ENV_1",
-				"ENV_2",
-				"ENV_3",
+			EnvironmentValidator: EnvironmentValidator{
+				EnvFilePath: "../../fixtures/.env",
 			},
 			Error: nil,
 		},
 		{
 
 			LaunchConfig: getLaunchConfigWithEnvs("ENV_1"),
-			envs: []string{
-				"ENV_1",
-				"ENV_2",
-				"ENV_3",
+			EnvironmentValidator: EnvironmentValidator{
+				EnvFilePath: "../../fixtures/.env",
 			},
 			Error: errors.New("env: missing ENV_2,ENV_3"),
 		},
@@ -44,8 +44,9 @@ func TestValidateEnvs(t *testing.T) {
 
 	for _, test := range cases {
 
-		err := ValidateEnvs(test.envs, test.LaunchConfig)
+		err := test.EnvironmentValidator.Validate(test.LaunchConfig)
 
+		fmt.Printf("error is %v\n", err)
 		if errorsNotEqual(err, test.Error) {
 			t.Errorf("validation error `%v` should match error expectation `%v`", err, test.Error)
 		}

@@ -3,9 +3,11 @@ package rancher
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/kr/pretty"
 	"github.com/rancher/go-rancher/client"
 )
 
@@ -141,14 +143,18 @@ func (srv *ServiceLikeName) List(opts *client.ListOpts) (*client.ServiceCollecti
 	}
 	return &client.ServiceCollection{
 		Data: []client.Service{
-			client.Service{},
+			client.Service{
+				LaunchConfig: &client.LaunchConfig{
+					ImageUuid: "",
+				},
+			},
 		},
 	}, nil
 }
 
 func TestServiceByName(t *testing.T) {
 	cli := Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &FailedService{},
 		},
 	}
@@ -162,7 +168,7 @@ func TestServiceByName(t *testing.T) {
 
 func TestSuccessfulServiceByName(t *testing.T) {
 	cli := Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &SuccessfulService{},
 		},
 	}
@@ -174,27 +180,9 @@ func TestSuccessfulServiceByName(t *testing.T) {
 	}
 }
 
-func TestUpgradeServiceCodeVersion(t *testing.T) {
-	cli := Client{
-		&client.RancherClient{
-			Service: &SuccessfulService{},
-		},
-	}
-
-	opts := UpgradeOpts{
-		Service: serviceName,
-		CodeTag: codeTag,
-	}
-	err := cli.UpgradeServiceCodeVersion(opts)
-
-	if err != nil {
-		t.Errorf("upgrading service with code version failed with %v", err)
-	}
-}
-
 func TestFinishServiceUpgradeFailed(t *testing.T) {
 	cli := Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &FailedService{},
 		},
 	}
@@ -208,7 +196,7 @@ func TestFinishServiceUpgradeFailed(t *testing.T) {
 
 func TestFinishServiceUpgrade(t *testing.T) {
 	cli := Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &SuccessfulService{},
 		},
 	}
@@ -222,7 +210,7 @@ func TestFinishServiceUpgrade(t *testing.T) {
 
 func TestServiceLikeName(t *testing.T) {
 	cli := Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &ServiceLikeName{},
 		},
 	}
@@ -236,7 +224,7 @@ func TestServiceLikeName(t *testing.T) {
 
 func TestUpgradeServiceVersion(t *testing.T) {
 	cli := Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &UpgradeServiceService{},
 		},
 	}
@@ -245,7 +233,7 @@ func TestUpgradeServiceVersion(t *testing.T) {
 		Service:    serviceName,
 		RuntimeTag: codeTag,
 	}
-	err := cli.UpgradeServiceVersion(opts)
+	err := cli.UpgradeService(opts)
 
 	if err != nil {
 		t.Errorf("finishing service upgrade failed with: %v", err)
@@ -260,7 +248,7 @@ func TestWaitTimesOutWhenUpgradeTakesTooLong(t *testing.T) {
 		Interval: time.Millisecond,
 	}
 	cli := &Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &UpgradeServiceService{},
 		},
 	}
@@ -282,7 +270,7 @@ func TestWaitReturnsNilWhenServiceIsNoLongerTransitioning(t *testing.T) {
 		Interval: time.Millisecond,
 	}
 	cli := &Client{
-		&client.RancherClient{
+		RancherClient: &client.RancherClient{
 			Service: &UpgradeServiceService{},
 		},
 	}
@@ -294,6 +282,89 @@ func TestWaitReturnsNilWhenServiceIsNoLongerTransitioning(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("wait should have exited cleanly")
+	}
+}
+
+func TestUpdateLaunchConfig(t *testing.T) {
+	slc := make(map[string]interface{})
+	slc["imageUuid"] = ""
+	srv := &client.Service{
+		LaunchConfig: &client.LaunchConfig{
+			ImageUuid: "",
+		},
+		SecondaryLaunchConfigs: []interface{}{
+			slc,
+		},
+	}
+
+	expectedSlc := make(map[string]interface{})
+	expectedSlc["imageUuid"] = "docker:sample"
+
+	tests := []struct {
+		ExpectedServiceUpgrade *client.ServiceUpgrade
+		Opts                   UpgradeOpts
+	}{
+		{
+			ExpectedServiceUpgrade: &client.ServiceUpgrade{
+				Resource: client.Resource{},
+				InServiceStrategy: &client.InServiceUpgradeStrategy{
+					BatchSize:      1,
+					IntervalMillis: 10000,
+					StartFirst:     true,
+					LaunchConfig: &client.LaunchConfig{
+						ImageUuid: "docker:sample",
+					},
+				},
+			},
+			Opts: UpgradeOpts{
+				RuntimeTag: "sample",
+			},
+		},
+		{
+			ExpectedServiceUpgrade: &client.ServiceUpgrade{
+				Resource: client.Resource{},
+				InServiceStrategy: &client.InServiceUpgradeStrategy{
+					BatchSize:      1,
+					IntervalMillis: 10000,
+					StartFirst:     true,
+					SecondaryLaunchConfigs: []interface{}{
+						expectedSlc,
+					},
+				},
+			},
+			Opts: UpgradeOpts{
+				CodeTag: "sample",
+			},
+		},
+		{
+			ExpectedServiceUpgrade: &client.ServiceUpgrade{
+				Resource: client.Resource{},
+				InServiceStrategy: &client.InServiceUpgradeStrategy{
+					BatchSize:      1,
+					IntervalMillis: 10000,
+					StartFirst:     true,
+					LaunchConfig: &client.LaunchConfig{
+						ImageUuid: "docker:sample",
+					},
+					SecondaryLaunchConfigs: []interface{}{
+						expectedSlc,
+					},
+				},
+			},
+			Opts: UpgradeOpts{
+				RuntimeTag: "sample",
+				CodeTag:    "sample",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		actual := UpdateLaunchConfig(srv, test.Opts)
+
+		if !reflect.DeepEqual(actual, test.ExpectedServiceUpgrade) {
+			t.Errorf("failure")
+			fmt.Printf("%v", pretty.Diff(actual, test.ExpectedServiceUpgrade))
+		}
 	}
 }
 

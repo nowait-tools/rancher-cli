@@ -8,8 +8,12 @@ import (
 	"github.com/rancher/go-rancher/client"
 )
 
-func GetEnvs(filenames ...string) ([]string, error) {
-	envMap, err := godotenv.Read(filenames...)
+type EnvironmentValidator struct {
+	EnvFilePath string
+}
+
+func (val *EnvironmentValidator) getEnvs() ([]string, error) {
+	envMap, err := godotenv.Read(val.EnvFilePath)
 
 	if err != nil {
 		return nil, err
@@ -21,8 +25,13 @@ func GetEnvs(filenames ...string) ([]string, error) {
 	return keys, nil
 }
 
-func ValidateEnvs(envs []string, lc *client.LaunchConfig) error {
+func (val *EnvironmentValidator) Validate(lc *client.LaunchConfig) error {
 	missing := []string{}
+	envs, err := val.getEnvs()
+
+	if err != nil {
+		return err
+	}
 	for _, env := range envs {
 		_, ok := lc.Environment[env]
 

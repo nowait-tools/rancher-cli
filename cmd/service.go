@@ -22,31 +22,8 @@ func ServiceCommand() cli.Command {
 		Usage: "Operations on services",
 		Subcommands: []cli.Command{
 			{
-				Name:  "upgrade-runtime",
-				Usage: "Upgrade the runtime tag of the service",
-				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name: "service",
-					},
-					cli.StringFlag{
-						Name: "tag",
-					},
-				},
-				Action: func(c *cli.Context) error {
-					client, err := rancher.NewClient(cattleUrl, cattleAccessKey, cattleSecret)
-					if err != nil {
-						return err
-					}
-					opts := rancher.UpgradeOpts{
-						Service:    c.String("service"),
-						RuntimeTag: c.String("tag"),
-					}
-					return client.UpgradeServiceVersion(opts)
-				},
-			},
-			{
-				Name:  "upgrade-code",
-				Usage: "Upgrade the code tag of the service",
+				Name:  "upgrade",
+				Usage: "Upgrade a service",
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name: "service",
@@ -55,7 +32,10 @@ func ServiceCommand() cli.Command {
 						Name: "service-like",
 					},
 					cli.StringFlag{
-						Name: "tag",
+						Name: "runtime-tag",
+					},
+					cli.StringFlag{
+						Name: "code-tag",
 					},
 					cli.Int64Flag{
 						Name:  "interval",
@@ -66,7 +46,7 @@ func ServiceCommand() cli.Command {
 						Usage: "Wait for the upgrade to fully complete",
 					},
 				},
-				Action: UpgradeCodeAction,
+				Action: UpgradeAction,
 			},
 			{
 				Name:  "upgrade-finish",
@@ -90,7 +70,7 @@ func ServiceCommand() cli.Command {
 	}
 }
 
-func UpgradeCodeAction(c *cli.Context) error {
+func UpgradeAction(c *cli.Context) error {
 	client, err := rancher.NewClient(cattleUrl, cattleAccessKey, cattleSecret)
 	if err != nil {
 		return err
@@ -101,14 +81,15 @@ func UpgradeCodeAction(c *cli.Context) error {
 	}
 
 	opts := rancher.UpgradeOpts{
-		Wait:        c.Bool("wait"),
+		Interval:    interval,
 		ServiceLike: c.String("service-like"),
 		Service:     c.String("service"),
-		CodeTag:     c.String("tag"),
-		Interval:    interval,
+		CodeTag:     c.String("code-tag"),
+		RuntimeTag:  c.String("runtime-tag"),
+		Wait:        c.Bool("wait"),
 	}
 	if name := opts.ServiceLike; name != "" {
 		return client.UpgradeServiceWithNameLike(opts)
 	}
-	return client.UpgradeServiceCodeVersion(opts)
+	return client.UpgradeService(opts)
 }

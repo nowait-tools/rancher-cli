@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/nowait/rancher-cli/rancher/config"
 	"github.com/rancher/go-rancher/client"
 )
 
@@ -19,6 +20,7 @@ var (
 
 type Client struct {
 	RancherClient *client.RancherClient
+	Validator     config.Validator
 }
 
 type UpgradeOpts struct {
@@ -79,6 +81,9 @@ func (cli *Client) ServiceByName(name string) (*client.Service, error) {
 		return nil, err
 	}
 
+	if len(services.Data) != 1 {
+		return nil, errors.New(fmt.Sprintf("failed to find service with name %s", name))
+	}
 	return &services.Data[0], nil
 }
 
@@ -97,38 +102,14 @@ func (cli *Client) ServiceLikeName(likeName string) (services *client.ServiceCol
 	return
 }
 
-func (cli *Client) UpgradeServiceVersion(opts UpgradeOpts) error {
+func (cli *Client) UpgradeService(opts UpgradeOpts) error {
 	service, err := cli.ServiceByName(opts.Service)
 
 	if err != nil {
 		return err
 	}
 
-	service.LaunchConfig.ImageUuid = fmt.Sprintf("docker:%s", opts.RuntimeTag)
-
-	serviceUpgrade := &client.ServiceUpgrade{
-		Resource: client.Resource{},
-		InServiceStrategy: &client.InServiceUpgradeStrategy{
-			// TODO: this should used to value passed in from the UpgradeOpts
-			LaunchConfig:   service.LaunchConfig,
-			BatchSize:      1,
-			IntervalMillis: 10000,
-			StartFirst:     true,
-		},
-	}
-	_, err = cli.RancherClient.Service.ActionUpgrade(service, serviceUpgrade)
-
-	return err
-}
-
-func (cli *Client) UpgradeServiceCodeVersion(opts UpgradeOpts) error {
-	service, err := cli.ServiceByName(opts.Service)
-
-	if err != nil {
-		return err
-	}
-
-	serviceUpgrade := updateCodeImage(service, opts.CodeTag)
+	serviceUpgrade := UpdateLaunchConfig(service, opts)
 	_, err = cli.RancherClient.Service.ActionUpgrade(service, serviceUpgrade)
 
 	return err
@@ -147,7 +128,7 @@ func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
 
 	for _, service := range services.Data {
 		go func(srv client.Service) {
-			serviceUpgrade := updateCodeImage(&srv, opts.CodeTag)
+			serviceUpgrade := UpdateLaunchConfig(&srv, opts)
 			service, err := cli.RancherClient.Service.ActionUpgrade(&srv, serviceUpgrade)
 
 			if err != nil {
@@ -200,25 +181,36 @@ func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
 	return nil
 }
 
-func updateCodeImage(service *client.Service, codeVersion string) *client.ServiceUpgrade {
-	service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"] = fmt.Sprintf("docker:%s", codeVersion)
+func UpdateLaunchConfig(service *client.Service, opts UpgradeOpts) *client.ServiceUpgrade {
+	inSrvStrat := &client.InServiceUpgradeStrategy{
+		BatchSize:      1,
+		IntervalMillis: 10000,
+		StartFirst:     true,
+	}
+
+	if opts.CodeTag != "" && opts.RuntimeTag == "" {
+		service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"] = fmt.Sprintf("docker:%s", opts.CodeTag)
+		inSrvStrat.SecondaryLaunchConfigs = service.SecondaryLaunchConfigs
+	} else if opts.RuntimeTag != "" && opts.CodeTag == "" {
+		service.LaunchConfig.ImageUuid = fmt.Sprintf("docker:%s", opts.RuntimeTag)
+		inSrvStrat.LaunchConfig = service.LaunchConfig
+	} else {
+		service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"] = fmt.Sprintf("docker:%s", opts.CodeTag)
+		service.LaunchConfig.ImageUuid = fmt.Sprintf("docker:%s", opts.RuntimeTag)
+		inSrvStrat.SecondaryLaunchConfigs = service.SecondaryLaunchConfigs
+		inSrvStrat.LaunchConfig = service.LaunchConfig
+	}
 
 	return &client.ServiceUpgrade{
-		Resource: client.Resource{},
-		InServiceStrategy: &client.InServiceUpgradeStrategy{
-			// TODO: this should used to value passed in from the UpgradeOpts
-			BatchSize:              1,
-			IntervalMillis:         10000,
-			StartFirst:             true,
-			SecondaryLaunchConfigs: service.SecondaryLaunchConfigs,
-		},
+		Resource:          client.Resource{},
+		InServiceStrategy: inSrvStrat,
 	}
 }
 
 func Wait(cli *Client, srv *client.Service, opts UpgradeOpts) error {
 	ch := make(chan error)
 	go func() {
-		<-time.After(opts.Interval * 15)
+		<-time.After(opts.Interval * 20)
 		ch <- errors.New("finishing upgrade timed out")
 	}()
 	go func() {
