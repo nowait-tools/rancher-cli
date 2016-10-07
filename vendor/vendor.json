@@ -16,6 +16,12 @@
 			"revisionTime": "2015-09-07T01:02:28Z"
 		},
 		{
+			"checksumSHA1": "eOXF2PEvYLMeD8DSzLZJWbjYzco=",
+			"path": "github.com/kr/pretty",
+			"revision": "cfb55aafdaf3ec08f0db22699ab822c50091b1c4",
+			"revisionTime": "2016-08-23T17:07:15Z"
+		},
+		{
 			"checksumSHA1": "jrLOpqvsL48DsDoquMtEVnDC2kw=",
 			"path": "github.com/rancher/go-rancher/client",
 			"revision": "853abf4af7cf82fcaa05d041de7c56b40d7a1b17",
