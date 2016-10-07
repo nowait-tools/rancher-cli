@@ -21,29 +21,6 @@ func ServiceCommand() cli.Command {
 		Name:  "service",
 		Usage: "Operations on services",
 		Subcommands: []cli.Command{
-			// {
-			// 	Name:  "upgrade-runtime",
-			// 	Usage: "Upgrade the runtime tag of the service",
-			// 	Flags: []cli.Flag{
-			// 		cli.StringFlag{
-			// 			Name: "service",
-			// 		},
-			// 		cli.StringFlag{
-			// 			Name: "tag",
-			// 		},
-			// 	},
-			// 	Action: func(c *cli.Context) error {
-			// 		client, err := rancher.NewClient(cattleUrl, cattleAccessKey, cattleSecret)
-			// 		if err != nil {
-			// 			return err
-			// 		}
-			// 		opts := rancher.UpgradeOpts{
-			// 			Service:    c.String("service"),
-			// 			RuntimeTag: c.String("tag"),
-			// 		}
-			// 		return client.UpgradeServiceVersion(opts)
-			// 	},
-			// },
 			{
 				Name:  "upgrade",
 				Usage: "Upgrade a service",
