@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"errors"
-	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/nowait/rancher-cli/rancher"
+	"github.com/nowait/rancher-cli/rancher/config"
 	"github.com/urfave/cli"
 )
 
@@ -86,7 +84,7 @@ func UpgradeAction(c *cli.Context) error {
 	envFile := c.String("env-file")
 	env := c.StringSlice("env")
 
-	if err := validateEnvFlag(env); err != nil {
+	if err := config.ValidateEnvFlag(env); err != nil {
 		return err
 	}
 
@@ -115,13 +113,4 @@ func UpgradeAction(c *cli.Context) error {
 	_, err = client.UpgradeService(opts)
 
 	return err
-}
-
-func validateEnvFlag(envs []string) error {
-	for _, env := range envs {
-		if pieces := strings.SplitN(env, "=", 2); len(pieces) != 2 {
-			return errors.New(fmt.Sprintf("invalid env: %v\n expected key value pair in the form key=value", env))
-		}
-	}
-	return nil
 }
