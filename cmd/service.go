@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/nowait/rancher-cli/rancher"
+	"github.com/nowait/rancher-cli/rancher/config"
 	"github.com/urfave/cli"
 )
 
@@ -34,6 +35,10 @@ func ServiceCommand() cli.Command {
 					cli.StringFlag{
 						Name:  "env-file",
 						Usage: "File containing environment variables that will be used for validating that the Rancher service has all variables defined",
+					},
+					cli.StringSliceFlag{
+						Name:  "env",
+						Usage: "Environment variables to add when upgrading the service",
 					},
 					cli.StringFlag{
 						Name: "runtime-tag",
@@ -77,6 +82,12 @@ func ServiceCommand() cli.Command {
 func UpgradeAction(c *cli.Context) error {
 
 	envFile := c.String("env-file")
+	env := c.StringSlice("env")
+
+	if err := config.ValidateEnvFlag(env); err != nil {
+		return err
+	}
+
 	client, err := rancher.NewClient(cattleUrl, cattleAccessKey, cattleSecret, envFile)
 	if err != nil {
 		return err
@@ -87,6 +98,7 @@ func UpgradeAction(c *cli.Context) error {
 	}
 
 	opts := rancher.UpgradeOpts{
+		Envs:        env,
 		Interval:    interval,
 		ServiceLike: c.String("service-like"),
 		Service:     c.String("service"),
