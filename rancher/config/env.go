@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -44,4 +45,23 @@ func (val *EnvironmentValidator) Validate(lc *client.LaunchConfig) error {
 		return fmt.Errorf("env: missing %s", strings.Join(missing, ","))
 	}
 	return nil
+}
+
+// Validate that the strings contained in a slice match the form
+// key=value.
+func ValidateEnvFlag(envs []string) error {
+	for _, env := range envs {
+		if pieces := strings.SplitN(env, "=", 2); len(pieces) != 2 {
+			return errors.New(fmt.Sprintf("invalid env: %v\n expected key value pair in the form key=value", env))
+		}
+	}
+	return nil
+}
+
+// Function to return the key and value of the form key=value.
+// This method assumes it is already a valid environment variable
+// string.
+func GetEnvValue(env string) (key, value string) {
+	pieces := strings.SplitN(env, "=", 2)
+	return pieces[0], pieces[1]
 }

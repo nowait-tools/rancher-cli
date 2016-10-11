@@ -24,6 +24,7 @@ type Client struct {
 }
 
 type UpgradeOpts struct {
+	Envs        []string
 	Wait        bool
 	ServiceLike string
 	Service     string
@@ -205,16 +206,27 @@ func UpdateLaunchConfig(service *client.Service, opts UpgradeOpts) *client.Servi
 	}
 
 	if opts.CodeTag != "" && opts.RuntimeTag == "" {
+
 		service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"] = fmt.Sprintf("docker:%s", opts.CodeTag)
 		inSrvStrat.SecondaryLaunchConfigs = service.SecondaryLaunchConfigs
 	} else if opts.RuntimeTag != "" && opts.CodeTag == "" {
+
 		service.LaunchConfig.ImageUuid = fmt.Sprintf("docker:%s", opts.RuntimeTag)
 		inSrvStrat.LaunchConfig = service.LaunchConfig
-	} else {
+	} else if opts.RuntimeTag != "" && opts.CodeTag != "" {
+
 		service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"] = fmt.Sprintf("docker:%s", opts.CodeTag)
 		service.LaunchConfig.ImageUuid = fmt.Sprintf("docker:%s", opts.RuntimeTag)
 		inSrvStrat.SecondaryLaunchConfigs = service.SecondaryLaunchConfigs
 		inSrvStrat.LaunchConfig = service.LaunchConfig
+	}
+
+	if len(opts.Envs) > 0 {
+		for _, val := range opts.Envs {
+			key, value := config.GetEnvValue(val)
+			service.LaunchConfig.Environment[key] = value
+			inSrvStrat.LaunchConfig = service.LaunchConfig
+		}
 	}
 
 	return &client.ServiceUpgrade{

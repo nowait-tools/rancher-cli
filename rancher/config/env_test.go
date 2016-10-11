@@ -53,6 +53,40 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+func TestValidateEnvFlag(t *testing.T) {
+	tests := []struct {
+		Envs  []string
+		Error bool
+	}{
+		{
+			Envs: []string{
+				"ENVIRONMENT=prod",
+				"URL=https://test.salesforce.com/servlet/servlet.WebToLead?encoding=UTF-8",
+			},
+			Error: false,
+		},
+		{
+			Envs: []string{
+				"ENVIRONMENTprod",
+			},
+			Error: true,
+		},
+	}
+
+	for _, test := range tests {
+		result := ValidateEnvFlag(test.Envs)
+		if test.Error {
+			if result == nil {
+				t.Errorf("validation for envs should have failed")
+			}
+		} else {
+			if result != nil {
+				t.Errorf("validation for envs should passed")
+			}
+		}
+	}
+}
+
 func getLaunchConfigWithEnvs(envs ...string) *client.LaunchConfig {
 	environment := make(map[string]interface{})
 

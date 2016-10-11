@@ -313,19 +313,13 @@ func TestWaitReturnsNilWhenServiceIsNoLongerTransitioning(t *testing.T) {
 }
 
 func TestUpdateLaunchConfig(t *testing.T) {
-	slc := make(map[string]interface{})
-	slc["imageUuid"] = ""
-	srv := &client.Service{
-		LaunchConfig: &client.LaunchConfig{
-			ImageUuid: "",
-		},
-		SecondaryLaunchConfigs: []interface{}{
-			slc,
-		},
-	}
-
 	expectedSlc := make(map[string]interface{})
 	expectedSlc["imageUuid"] = "docker:sample"
+
+	emptyEnvs := make(map[string]interface{})
+
+	expectedEnvs := make(map[string]interface{})
+	expectedEnvs["ENVIRONMENT"] = "prod"
 
 	tests := []struct {
 		ExpectedServiceUpgrade *client.ServiceUpgrade
@@ -339,7 +333,8 @@ func TestUpdateLaunchConfig(t *testing.T) {
 					IntervalMillis: 10000,
 					StartFirst:     true,
 					LaunchConfig: &client.LaunchConfig{
-						ImageUuid: "docker:sample",
+						ImageUuid:   "docker:sample",
+						Environment: emptyEnvs,
 					},
 				},
 			},
@@ -371,7 +366,8 @@ func TestUpdateLaunchConfig(t *testing.T) {
 					IntervalMillis: 10000,
 					StartFirst:     true,
 					LaunchConfig: &client.LaunchConfig{
-						ImageUuid: "docker:sample",
+						ImageUuid:   "docker:sample",
+						Environment: emptyEnvs,
 					},
 					SecondaryLaunchConfigs: []interface{}{
 						expectedSlc,
@@ -383,14 +379,32 @@ func TestUpdateLaunchConfig(t *testing.T) {
 				CodeTag:    "sample",
 			},
 		},
+		{
+			ExpectedServiceUpgrade: &client.ServiceUpgrade{
+				Resource: client.Resource{},
+				InServiceStrategy: &client.InServiceUpgradeStrategy{
+					BatchSize:      1,
+					IntervalMillis: 10000,
+					StartFirst:     true,
+					LaunchConfig: &client.LaunchConfig{
+						Environment: expectedEnvs,
+					},
+				},
+			},
+			Opts: UpgradeOpts{
+				Envs: []string{
+					"ENVIRONMENT=prod",
+				},
+			},
+		},
 	}
 
-	for _, test := range tests {
-		actual := UpdateLaunchConfig(srv, test.Opts)
+	for index, test := range tests {
+		actual := UpdateLaunchConfig(dummyService(), test.Opts)
 
 		if !reflect.DeepEqual(actual, test.ExpectedServiceUpgrade) {
-			t.Errorf("failure")
-			fmt.Printf("%v", pretty.Diff(actual, test.ExpectedServiceUpgrade))
+			t.Errorf("failure for test case %d", index)
+			fmt.Printf("actual: %#v \n\n expected: %#v \n\n Diff: %v", actual, test.ExpectedServiceUpgrade, pretty.Diff(actual, test.ExpectedServiceUpgrade))
 		}
 	}
 }
@@ -411,4 +425,20 @@ func validServiceVersionUpgrade(upgrade *client.ServiceUpgrade) bool {
 		return false
 	}
 	return true
+}
+
+func dummyService() *client.Service {
+	slc := make(map[string]interface{})
+	slc["imageUuid"] = ""
+
+	envs := make(map[string]interface{})
+	return &client.Service{
+		LaunchConfig: &client.LaunchConfig{
+			ImageUuid:   "",
+			Environment: envs,
+		},
+		SecondaryLaunchConfigs: []interface{}{
+			slc,
+		},
+	}
 }
