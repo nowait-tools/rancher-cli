@@ -201,7 +201,7 @@ func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
 func UpdateLaunchConfig(service *client.Service, opts UpgradeOpts) *client.ServiceUpgrade {
 	inSrvStrat := &client.InServiceUpgradeStrategy{
 		BatchSize:      1,
-		IntervalMillis: 10000,
+		IntervalMillis: int64(opts.Interval),
 		StartFirst:     true,
 	}
 
