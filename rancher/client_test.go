@@ -315,6 +315,8 @@ func TestWaitReturnsNilWhenServiceIsNoLongerTransitioning(t *testing.T) {
 func TestUpdateLaunchConfig(t *testing.T) {
 	expectedSlc := make(map[string]interface{})
 	expectedSlc["imageUuid"] = "docker:sample"
+	var expectedInterval int64 = 5
+	interval := time.Duration(expectedInterval)
 
 	emptyEnvs := make(map[string]interface{})
 
@@ -330,7 +332,7 @@ func TestUpdateLaunchConfig(t *testing.T) {
 				Resource: client.Resource{},
 				InServiceStrategy: &client.InServiceUpgradeStrategy{
 					BatchSize:      1,
-					IntervalMillis: 10000,
+					IntervalMillis: expectedInterval,
 					StartFirst:     true,
 					LaunchConfig: &client.LaunchConfig{
 						ImageUuid:   "docker:sample",
@@ -340,6 +342,7 @@ func TestUpdateLaunchConfig(t *testing.T) {
 			},
 			Opts: UpgradeOpts{
 				RuntimeTag: "sample",
+				Interval:   interval,
 			},
 		},
 		{
@@ -347,7 +350,7 @@ func TestUpdateLaunchConfig(t *testing.T) {
 				Resource: client.Resource{},
 				InServiceStrategy: &client.InServiceUpgradeStrategy{
 					BatchSize:      1,
-					IntervalMillis: 10000,
+					IntervalMillis: expectedInterval,
 					StartFirst:     true,
 					SecondaryLaunchConfigs: []interface{}{
 						expectedSlc,
@@ -355,7 +358,8 @@ func TestUpdateLaunchConfig(t *testing.T) {
 				},
 			},
 			Opts: UpgradeOpts{
-				CodeTag: "sample",
+				CodeTag:  "sample",
+				Interval: interval,
 			},
 		},
 		{
@@ -363,7 +367,7 @@ func TestUpdateLaunchConfig(t *testing.T) {
 				Resource: client.Resource{},
 				InServiceStrategy: &client.InServiceUpgradeStrategy{
 					BatchSize:      1,
-					IntervalMillis: 10000,
+					IntervalMillis: expectedInterval,
 					StartFirst:     true,
 					LaunchConfig: &client.LaunchConfig{
 						ImageUuid:   "docker:sample",
@@ -377,6 +381,7 @@ func TestUpdateLaunchConfig(t *testing.T) {
 			Opts: UpgradeOpts{
 				RuntimeTag: "sample",
 				CodeTag:    "sample",
+				Interval:   interval,
 			},
 		},
 		{
@@ -384,7 +389,7 @@ func TestUpdateLaunchConfig(t *testing.T) {
 				Resource: client.Resource{},
 				InServiceStrategy: &client.InServiceUpgradeStrategy{
 					BatchSize:      1,
-					IntervalMillis: 10000,
+					IntervalMillis: expectedInterval,
 					StartFirst:     true,
 					LaunchConfig: &client.LaunchConfig{
 						Environment: expectedEnvs,
@@ -395,6 +400,7 @@ func TestUpdateLaunchConfig(t *testing.T) {
 				Envs: []string{
 					"ENVIRONMENT=prod",
 				},
+				Interval: interval,
 			},
 		},
 	}
