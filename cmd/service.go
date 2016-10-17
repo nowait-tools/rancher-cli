@@ -97,7 +97,7 @@ func UpgradeAction(c *cli.Context) error {
 		interval = defaultUpgradeInterval
 	}
 
-	opts := rancher.UpgradeOpts{
+	opts := config.UpgradeOpts{
 		Envs:        env,
 		Interval:    interval,
 		ServiceLike: c.String("service-like"),

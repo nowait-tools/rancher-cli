@@ -24,16 +24,6 @@ type Client struct {
 	Validator     config.Validator
 }
 
-type UpgradeOpts struct {
-	Envs        []string
-	Wait        bool
-	ServiceLike string
-	Service     string
-	CodeTag     string
-	RuntimeTag  string
-	Interval    time.Duration
-}
-
 type UpgradeResult struct {
 	Service *client.Service
 	Error   error
@@ -115,14 +105,14 @@ func (cli *Client) ServiceLikeName(likeName string) (services *client.ServiceCol
 	return
 }
 
-func (cli *Client) UpgradeService(opts UpgradeOpts) (*client.Service, error) {
+func (cli *Client) UpgradeService(opts config.UpgradeOpts) (*client.Service, error) {
 	service, err := cli.ServiceByName(opts.Service)
 
 	if err != nil {
 		return service, err
 	}
 
-	if err = cli.Validator.Validate(service.LaunchConfig); err != nil {
+	if err = cli.Validator.Validate(service.LaunchConfig, opts); err != nil {
 		return service, err
 	}
 
@@ -133,7 +123,7 @@ func (cli *Client) UpgradeService(opts UpgradeOpts) (*client.Service, error) {
 }
 
 // TODO: Simplify this method and test it
-func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
+func (cli *Client) UpgradeServiceWithNameLike(opts config.UpgradeOpts) error {
 	failed := false
 	services, err := cli.ServiceLikeName(opts.ServiceLike)
 
@@ -145,7 +135,7 @@ func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
 	upgradeErrs := make(chan UpgradeResult, serviceCount)
 
 	for _, service := range services.Data {
-		go func(srv client.Service, opts UpgradeOpts) {
+		go func(srv client.Service, opts config.UpgradeOpts) {
 			opts.Service = srv.Name
 			service, err := cli.UpgradeService(opts)
 
@@ -199,7 +189,7 @@ func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
 	return nil
 }
 
-func UpdateLaunchConfig(service *client.Service, opts UpgradeOpts) *client.ServiceUpgrade {
+func UpdateLaunchConfig(service *client.Service, opts config.UpgradeOpts) *client.ServiceUpgrade {
 	inSrvStrat := &client.InServiceUpgradeStrategy{
 		BatchSize:      1,
 		IntervalMillis: int64(opts.Interval) / (int64(math.Pow10(6))),
@@ -236,7 +226,7 @@ func UpdateLaunchConfig(service *client.Service, opts UpgradeOpts) *client.Servi
 	}
 }
 
-func Wait(cli *Client, srv *client.Service, opts UpgradeOpts) error {
+func Wait(cli *Client, srv *client.Service, opts config.UpgradeOpts) error {
 	ch := make(chan error)
 	go func() {
 		<-time.After(opts.Interval * 20)

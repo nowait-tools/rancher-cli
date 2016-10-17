@@ -44,7 +44,7 @@ func TestValidate(t *testing.T) {
 
 	for _, test := range cases {
 
-		err := test.EnvironmentValidator.Validate(test.LaunchConfig)
+		err := test.EnvironmentValidator.Validate(test.LaunchConfig, UpgradeOpts{})
 
 		fmt.Printf("error is %v\n", err)
 		if errorsNotEqual(err, test.Error) {

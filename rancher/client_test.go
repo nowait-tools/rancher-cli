@@ -155,7 +155,7 @@ func (srv *ServiceLikeName) List(opts *client.ListOpts) (*client.ServiceCollecti
 
 type FailedValidator struct{}
 
-func (val *FailedValidator) Validate(lc *client.LaunchConfig) error {
+func (val *FailedValidator) Validate(lc *client.LaunchConfig, opts config.UpgradeOpts) error {
 	return errors.New("validation has failed")
 }
 
@@ -237,7 +237,7 @@ func TestUpgradeService(t *testing.T) {
 		Validator: &config.NoopValidator{},
 	}
 
-	opts := UpgradeOpts{
+	opts := config.UpgradeOpts{
 		Service:    serviceName,
 		RuntimeTag: codeTag,
 	}
@@ -256,7 +256,7 @@ func TestUpgradeServiceFailsWhenValidationFails(t *testing.T) {
 		Validator: &FailedValidator{},
 	}
 
-	opts := UpgradeOpts{
+	opts := config.UpgradeOpts{
 		Service:    serviceName,
 		RuntimeTag: codeTag,
 	}
@@ -271,7 +271,7 @@ func TestWaitTimesOutWhenUpgradeTakesTooLong(t *testing.T) {
 	orig := upgradePollInterval
 	upgradePollInterval = 10 * time.Second
 
-	opts := UpgradeOpts{
+	opts := config.UpgradeOpts{
 		Interval: time.Millisecond,
 	}
 	cli := &Client{
@@ -293,7 +293,7 @@ func TestWaitTimesOutWhenUpgradeTakesTooLong(t *testing.T) {
 }
 
 func TestWaitReturnsNilWhenServiceIsNoLongerTransitioning(t *testing.T) {
-	opts := UpgradeOpts{
+	opts := config.UpgradeOpts{
 		Interval: time.Millisecond,
 	}
 	cli := &Client{
@@ -325,7 +325,7 @@ func TestUpdateLaunchConfig(t *testing.T) {
 
 	tests := []struct {
 		ExpectedServiceUpgrade *client.ServiceUpgrade
-		Opts                   UpgradeOpts
+		Opts                   config.UpgradeOpts
 	}{
 		{
 			ExpectedServiceUpgrade: &client.ServiceUpgrade{
@@ -340,7 +340,7 @@ func TestUpdateLaunchConfig(t *testing.T) {
 					},
 				},
 			},
-			Opts: UpgradeOpts{
+			Opts: config.UpgradeOpts{
 				RuntimeTag: "sample",
 				Interval:   interval,
 			},
@@ -357,7 +357,7 @@ func TestUpdateLaunchConfig(t *testing.T) {
 					},
 				},
 			},
-			Opts: UpgradeOpts{
+			Opts: config.UpgradeOpts{
 				CodeTag:  "sample",
 				Interval: interval,
 			},
@@ -378,7 +378,7 @@ func TestUpdateLaunchConfig(t *testing.T) {
 					},
 				},
 			},
-			Opts: UpgradeOpts{
+			Opts: config.UpgradeOpts{
 				RuntimeTag: "sample",
 				CodeTag:    "sample",
 				Interval:   interval,
@@ -396,7 +396,7 @@ func TestUpdateLaunchConfig(t *testing.T) {
 					},
 				},
 			},
-			Opts: UpgradeOpts{
+			Opts: config.UpgradeOpts{
 				Envs: []string{
 					"ENVIRONMENT=prod",
 				},
