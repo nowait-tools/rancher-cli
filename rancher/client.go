@@ -21,7 +21,7 @@ var (
 
 type Client struct {
 	RancherClient *client.RancherClient
-	Validator     config.Validator
+	Validators    []config.Validator
 }
 
 type UpgradeResult struct {
@@ -41,18 +41,29 @@ func NewClient(cattleURL string, cattleAccessKey string, cattleSecretKey string,
 		return nil, err
 	}
 
+	registryValidator, err := config.NewRegistryValidator()
+
+	if err != nil {
+		return nil, err
+	}
+
 	if envFile != "" {
 		return &Client{
 			RancherClient: apiClient,
-			Validator: &config.EnvironmentValidator{
-				EnvFilePath: envFile,
+			Validators: []config.Validator{
+				registryValidator,
+				&config.EnvironmentValidator{
+					EnvFilePath: envFile,
+				},
 			},
 		}, nil
 
 	} else {
 		return &Client{
 			RancherClient: apiClient,
-			Validator:     &config.NoopValidator{},
+			Validators: []config.Validator{
+				registryValidator,
+			},
 		}, nil
 	}
 }
@@ -112,7 +123,7 @@ func (cli *Client) UpgradeService(opts config.UpgradeOpts) (*client.Service, err
 		return service, err
 	}
 
-	if err = cli.Validator.Validate(service.LaunchConfig, opts); err != nil {
+	if err = cli.ValidateService(service, opts); err != nil {
 		return service, err
 	}
 
@@ -248,6 +259,18 @@ func Wait(cli *Client, srv *client.Service, opts config.UpgradeOpts) error {
 	}()
 
 	return <-ch
+}
+
+func (cli *Client) ValidateService(service *client.Service, opts config.UpgradeOpts) error {
+	for _, val := range cli.Validators {
+		err := val.Validate(service, opts)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func getServiceLikeQuery(serviceName string) string {

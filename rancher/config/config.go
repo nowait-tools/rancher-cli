@@ -7,12 +7,12 @@ import (
 )
 
 type Validator interface {
-	Validate(lc *client.LaunchConfig, opts UpgradeOpts) error
+	Validate(service *client.Service, opts UpgradeOpts) error
 }
 
 type NoopValidator struct{}
 
-func (val *NoopValidator) Validate(lc *client.LaunchConfig, opts UpgradeOpts) error {
+func (val *NoopValidator) Validate(service *client.Service, opts UpgradeOpts) error {
 	return nil
 }
 

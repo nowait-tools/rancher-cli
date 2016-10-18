@@ -155,7 +155,7 @@ func (srv *ServiceLikeName) List(opts *client.ListOpts) (*client.ServiceCollecti
 
 type FailedValidator struct{}
 
-func (val *FailedValidator) Validate(lc *client.LaunchConfig, opts config.UpgradeOpts) error {
+func (val *FailedValidator) Validate(service *client.Service, opts config.UpgradeOpts) error {
 	return errors.New("validation has failed")
 }
 
@@ -234,7 +234,9 @@ func TestUpgradeService(t *testing.T) {
 		RancherClient: &client.RancherClient{
 			Service: &UpgradeServiceService{},
 		},
-		Validator: &config.NoopValidator{},
+		Validators: []config.Validator{
+			&config.NoopValidator{},
+		},
 	}
 
 	opts := config.UpgradeOpts{
@@ -253,7 +255,31 @@ func TestUpgradeServiceFailsWhenValidationFails(t *testing.T) {
 		RancherClient: &client.RancherClient{
 			Service: &UpgradeServiceService{},
 		},
-		Validator: &FailedValidator{},
+		Validators: []config.Validator{
+			&FailedValidator{},
+		},
+	}
+
+	opts := config.UpgradeOpts{
+		Service:    serviceName,
+		RuntimeTag: codeTag,
+	}
+	_, err := cli.UpgradeService(opts)
+
+	if err == nil {
+		t.Errorf("service upgrade should have failed")
+	}
+}
+
+func TestUpgradeServiceFailsWhenSingleValidatorFails(t *testing.T) {
+	cli := Client{
+		RancherClient: &client.RancherClient{
+			Service: &UpgradeServiceService{},
+		},
+		Validators: []config.Validator{
+			&config.NoopValidator{},
+			&FailedValidator{},
+		},
 	}
 
 	opts := config.UpgradeOpts{
