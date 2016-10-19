@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"time"
 
 	"github.com/nowait/rancher-cli/rancher/config"
@@ -201,7 +202,7 @@ func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
 func UpdateLaunchConfig(service *client.Service, opts UpgradeOpts) *client.ServiceUpgrade {
 	inSrvStrat := &client.InServiceUpgradeStrategy{
 		BatchSize:      1,
-		IntervalMillis: int64(opts.Interval),
+		IntervalMillis: int64(opts.Interval) / (int64(math.Pow10(6))),
 		StartFirst:     true,
 	}
 

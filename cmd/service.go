@@ -93,7 +93,7 @@ func UpgradeAction(c *cli.Context) error {
 		return err
 	}
 	interval := time.Duration(0)
-	if interval = time.Duration(c.Int64("interval")); interval == 0 {
+	if interval = time.Duration(c.Int64("interval") * int64(time.Second)); interval == 0 {
 		interval = defaultUpgradeInterval
 	}
 
