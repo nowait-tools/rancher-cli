@@ -26,6 +26,11 @@ type RegistryClient interface {
 	Tags(repository string) (tags []string, err error)
 }
 
+type image struct {
+	launchConfigImage string
+	upgradeImage      string
+}
+
 func NewRegistryValidator() (*RegistryValidator, error) {
 	client, err := registry.New(registryUrl, username, password)
 
@@ -40,41 +45,60 @@ func NewRegistryValidator() (*RegistryValidator, error) {
 
 func (val *RegistryValidator) Validate(service *client.Service, opts UpgradeOpts) error {
 	// Verify that the image name provided is valid and that it exists in the registry
-	lc := service.LaunchConfig
-	upgradeCode := opts.RuntimeTag
-	// Check if image is valid in the context of docker's rules
-	ref, err := validateImageName(upgradeCode)
+	images := []image{}
+	if opts.RuntimeTag != "" {
 
-	if err != nil {
-		return err
+		images = append(images, image{
+			upgradeImage:      opts.RuntimeTag,
+			launchConfigImage: service.LaunchConfig.ImageUuid,
+		})
+	}
+	if opts.CodeTag != "" {
+
+		images = append(images, image{
+			launchConfigImage: service.SecondaryLaunchConfigs[0].(map[string]interface{})["ImageUuid"].(string),
+			upgradeImage:      opts.CodeTag,
+		})
 	}
 
-	repo := ""
-	expectedTag := ""
-	switch t := ref.(type) {
-	case reference.NamedTagged:
-		repo = t.Name()
-		expectedTag = t.Tag()
-	case reference.Reference:
-		repo = imageUuidToRepository(lc.ImageUuid)
-		expectedTag = t.String()
-	default:
-		panic(fmt.Sprintf("unsupported reference type %v", ref))
-	}
+	return val.imageExistsInRegistry(images)
+}
 
-	tags, err := val.RegistryClient.Tags(repo)
+func (val *RegistryValidator) imageExistsInRegistry(images []image) error {
+	for _, image := range images {
+		ref, err := validateImageName(image.upgradeImage)
 
-	if err != nil {
-		return err
-	}
-
-	for _, tag := range tags {
-		if tag == expectedTag {
-			return nil
+		if err != nil {
+			return err
 		}
-	}
 
-	return ImageNotFound
+		repo := ""
+		expectedTag := ""
+		switch t := ref.(type) {
+		case reference.NamedTagged:
+			repo = t.Name()
+			expectedTag = t.Tag()
+		case reference.Reference:
+			repo = imageUuidToRepository(image.launchConfigImage)
+			expectedTag = t.String()
+		default:
+			panic(fmt.Sprintf("unsupported reference type %v", ref))
+		}
+
+		tags, err := val.RegistryClient.Tags(repo)
+
+		if err != nil {
+			return err
+		}
+
+		if containsTag(expectedTag, tags) {
+			continue
+		}
+
+		return ImageNotFound
+
+	}
+	return nil
 }
 
 func validateImageName(image string) (reference.Reference, error) {
@@ -91,4 +115,13 @@ func validateImageName(image string) (reference.Reference, error) {
 // return just the image/name
 func imageUuidToRepository(imageUuid string) string {
 	return strings.Split(imageUuid, ":")[1]
+}
+
+func containsTag(expectedTag string, tags []string) bool {
+	for _, tag := range tags {
+		if tag == expectedTag {
+			return true
+		}
+	}
+	return false
 }

@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/rancher/go-rancher/client"
@@ -25,6 +26,11 @@ func (client *FailedRegistryClient) Tags(repository string) (tags []string, err 
 }
 
 func TestRegistryValidatorValidate(t *testing.T) {
+	lc := make(map[string]interface{})
+	lc["ImageUuid"] = "docker:image/name:1.0"
+	slcs := []interface{}{
+		lc,
+	}
 	tests := []struct {
 		Service    *client.Service
 		Opts       UpgradeOpts
@@ -52,6 +58,23 @@ func TestRegistryValidatorValidate(t *testing.T) {
 				LaunchConfig: &client.LaunchConfig{
 					ImageUuid: "docker:image/name:1.0",
 				},
+				SecondaryLaunchConfigs: slcs,
+			},
+			Opts: UpgradeOpts{
+				RuntimeTag: "image/name:2.0",
+				CodeTag:    "image/name:2.0",
+			},
+			Validator: &RegistryValidator{
+				RegistryClient: &NoopRegistryClient{},
+			},
+			Error:      nil,
+			FailureMsg: "upgrade should be able to specify full name for code tag",
+		},
+		{
+			Service: &client.Service{
+				LaunchConfig: &client.LaunchConfig{
+					ImageUuid: "docker:image/name:1.0",
+				},
 			},
 			Opts: UpgradeOpts{
 				RuntimeTag: "2.0",
@@ -61,6 +84,23 @@ func TestRegistryValidatorValidate(t *testing.T) {
 			},
 			Error:      nil,
 			FailureMsg: "upgrade should be able to specify the tag only for runtime tag",
+		},
+		{
+			Service: &client.Service{
+				LaunchConfig: &client.LaunchConfig{
+					ImageUuid: "docker:image/name:1.0",
+				},
+				SecondaryLaunchConfigs: slcs,
+			},
+			Opts: UpgradeOpts{
+				// RuntimeTag: "2.0",
+				CodeTag: "2.0",
+			},
+			Validator: &RegistryValidator{
+				RegistryClient: &NoopRegistryClient{},
+			},
+			Error:      nil,
+			FailureMsg: "upgrade should be able to specify the tag only for code tag",
 		},
 		{
 			Service: &client.Service{
@@ -82,9 +122,42 @@ func TestRegistryValidatorValidate(t *testing.T) {
 				LaunchConfig: &client.LaunchConfig{
 					ImageUuid: "docker:image/name:1.0",
 				},
+				SecondaryLaunchConfigs: slcs,
 			},
 			Opts: UpgradeOpts{
-				RuntimeTag: "3.0",
+				// RuntimeTag: "2.0",
+				CodeTag: "3.0",
+			},
+			Validator: &RegistryValidator{
+				RegistryClient: &NoopRegistryClient{},
+			},
+			Error:      ImageNotFound,
+			FailureMsg: "should have received image not found for invalid tag for code tag",
+		},
+		{
+			Service: &client.Service{
+				LaunchConfig: &client.LaunchConfig{
+					ImageUuid: "docker:image/name:1.0",
+				},
+			},
+			Opts: UpgradeOpts{
+				RuntimeTag: "2.0",
+			},
+			Validator: &RegistryValidator{
+				&FailedRegistryClient{},
+			},
+			Error:      failedToRetrieveTags,
+			FailureMsg: "should have received failure on retrieving tags",
+		},
+		{
+			Service: &client.Service{
+				LaunchConfig: &client.LaunchConfig{
+					ImageUuid: "docker:image/name:1.0",
+				},
+				SecondaryLaunchConfigs: slcs,
+			},
+			Opts: UpgradeOpts{
+				CodeTag: "2.0",
 			},
 			Validator: &RegistryValidator{
 				&FailedRegistryClient{},
@@ -100,6 +173,7 @@ func TestRegistryValidatorValidate(t *testing.T) {
 
 		if err != test.Error {
 			t.Errorf(test.FailureMsg)
+			fmt.Printf("Test failed with error: %v", err)
 		}
 	}
 }

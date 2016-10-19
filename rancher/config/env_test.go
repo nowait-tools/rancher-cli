@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/rancher/go-rancher/client"
@@ -50,7 +49,6 @@ func TestValidate(t *testing.T) {
 
 		err := test.EnvironmentValidator.Validate(test.Service, UpgradeOpts{})
 
-		fmt.Printf("error is %v\n", err)
 		if errorsNotEqual(err, test.Error) {
 			t.Errorf("validation error `%v` should match error expectation `%v`", err, test.Error)
 		}
