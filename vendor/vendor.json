@@ -3,11 +3,92 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "2avCvSn0XonfApKKuTMyiQmk7s0=",
+			"origin": "github.com/heroku/docker-registry-client/vendor/github.com/Sirupsen/logrus",
+			"path": "github.com/Sirupsen/logrus",
+			"revision": "2a2e6b9e3eed0a98d438f111ba7469744c07281d",
+			"revisionTime": "2016-10-06T17:25:59Z"
+		},
+		{
+			"checksumSHA1": "Nge8TFcb8UiM2yAHwIoV8qdFKy4=",
+			"origin": "github.com/heroku/docker-registry-client/vendor/github.com/docker/distribution",
+			"path": "github.com/docker/distribution",
+			"revision": "2a2e6b9e3eed0a98d438f111ba7469744c07281d",
+			"revisionTime": "2016-10-06T17:25:59Z"
+		},
+		{
+			"checksumSHA1": "0au+tD+jymXNssdb1JgcctY7PN4=",
+			"origin": "github.com/heroku/docker-registry-client/vendor/github.com/docker/distribution/context",
+			"path": "github.com/docker/distribution/context",
+			"revision": "2a2e6b9e3eed0a98d438f111ba7469744c07281d",
+			"revisionTime": "2016-10-06T17:25:59Z"
+		},
+		{
+			"checksumSHA1": "f1wARLDzsF/JoyN01yoxXEwFIp8=",
+			"path": "github.com/docker/distribution/digest",
+			"revision": "9000745401d186602c2ae63ffca12ed4233a968b",
+			"revisionTime": "2016-08-09T20:45:07Z"
+		},
+		{
+			"checksumSHA1": "oYy5Q1HBImMQvh9t96cmNzWar80=",
+			"origin": "github.com/heroku/docker-registry-client/vendor/github.com/docker/distribution/manifest",
+			"path": "github.com/docker/distribution/manifest",
+			"revision": "2a2e6b9e3eed0a98d438f111ba7469744c07281d",
+			"revisionTime": "2016-10-06T17:25:59Z"
+		},
+		{
+			"checksumSHA1": "XFMuuUrVW18yXJr0Br+RNh6lpf8=",
+			"origin": "github.com/heroku/docker-registry-client/vendor/github.com/docker/distribution/manifest/schema1",
+			"path": "github.com/docker/distribution/manifest/schema1",
+			"revision": "2a2e6b9e3eed0a98d438f111ba7469744c07281d",
+			"revisionTime": "2016-10-06T17:25:59Z"
+		},
+		{
+			"checksumSHA1": "PzXRTLmmqWXxmDqdIXLcRYBma18=",
+			"path": "github.com/docker/distribution/reference",
+			"revision": "9000745401d186602c2ae63ffca12ed4233a968b",
+			"revisionTime": "2016-08-09T20:45:07Z"
+		},
+		{
+			"checksumSHA1": "cNp7rNReJHvdSfrIetXS9RGsLSo=",
+			"origin": "github.com/heroku/docker-registry-client/vendor/github.com/docker/distribution/uuid",
+			"path": "github.com/docker/distribution/uuid",
+			"revision": "2a2e6b9e3eed0a98d438f111ba7469744c07281d",
+			"revisionTime": "2016-10-06T17:25:59Z"
+		},
+		{
+			"checksumSHA1": "sNAU9ojYVUhO6dVXey6T3JhRQpw=",
+			"origin": "github.com/heroku/docker-registry-client/vendor/github.com/docker/libtrust",
+			"path": "github.com/docker/libtrust",
+			"revision": "2a2e6b9e3eed0a98d438f111ba7469744c07281d",
+			"revisionTime": "2016-10-06T17:25:59Z"
+		},
+		{
+			"checksumSHA1": "g/V4qrXjUGG9B+e3hB+4NAYJ5Gs=",
+			"origin": "github.com/heroku/docker-registry-client/vendor/github.com/gorilla/context",
+			"path": "github.com/gorilla/context",
+			"revision": "2a2e6b9e3eed0a98d438f111ba7469744c07281d",
+			"revisionTime": "2016-10-06T17:25:59Z"
+		},
+		{
+			"checksumSHA1": "oDsOWp1nBMGpQ9gCFnczGADwZTE=",
+			"origin": "github.com/heroku/docker-registry-client/vendor/github.com/gorilla/mux",
+			"path": "github.com/gorilla/mux",
+			"revision": "2a2e6b9e3eed0a98d438f111ba7469744c07281d",
+			"revisionTime": "2016-10-06T17:25:59Z"
+		},
+		{
 			"checksumSHA1": "klfNfdEPsrWYLps2qBkLgfJsNYI=",
 			"origin": "github.com/rancher/go-rancher/vendor/github.com/gorilla/websocket",
 			"path": "github.com/gorilla/websocket",
 			"revision": "853abf4af7cf82fcaa05d041de7c56b40d7a1b17",
 			"revisionTime": "2016-05-29T16:22:06Z"
+		},
+		{
+			"checksumSHA1": "wMG0j9h0LS4sn+c1fneZCDOTYMQ=",
+			"path": "github.com/heroku/docker-registry-client/registry",
+			"revision": "2a2e6b9e3eed0a98d438f111ba7469744c07281d",
+			"revisionTime": "2016-10-06T17:25:59Z"
 		},
 		{
 			"checksumSHA1": "ljZrmD7pmMXAkGNfp6IEzj31fY8=",
@@ -22,6 +103,12 @@
 			"revisionTime": "2016-08-23T17:07:15Z"
 		},
 		{
+			"checksumSHA1": "uulQHQ7IsRKqDudBC8Go9J0gtAc=",
+			"path": "github.com/kr/text",
+			"revision": "7cafcd837844e784b526369c9bce262804aebc60",
+			"revisionTime": "2016-05-04T02:26:26Z"
+		},
+		{
 			"checksumSHA1": "jrLOpqvsL48DsDoquMtEVnDC2kw=",
 			"path": "github.com/rancher/go-rancher/client",
 			"revision": "853abf4af7cf82fcaa05d041de7c56b40d7a1b17",
@@ -32,6 +119,13 @@
 			"path": "github.com/urfave/cli",
 			"revision": "168c95418e66e019fe17b8f4f5c45aa62ff80e23",
 			"revisionTime": "2016-08-01T03:09:57Z"
+		},
+		{
+			"checksumSHA1": "jmDEnHmGflXf/8uGh9ph9DE+48Y=",
+			"origin": "github.com/heroku/docker-registry-client/vendor/golang.org/x/net/context",
+			"path": "golang.org/x/net/context",
+			"revision": "2a2e6b9e3eed0a98d438f111ba7469744c07281d",
+			"revisionTime": "2016-10-06T17:25:59Z"
 		}
 	],
 	"rootPath": "github.com/nowait/rancher-cli"
