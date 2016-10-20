@@ -282,9 +282,7 @@ func Wait(cli *Client, srv *client.Service, opts config.UpgradeOpts) error {
 
 func (cli *Client) ValidateService(service *client.Service, opts config.UpgradeOpts) error {
 	for _, val := range cli.Validators {
-		err := val.Validate(service, opts)
-
-		if err != nil {
+		if err := val.Validate(service, opts); err != nil {
 			return err
 		}
 	}
