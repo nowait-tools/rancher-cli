@@ -8,4 +8,3 @@ Update with the correct instructions.
 
 ### TODO
 - [ ] Provide correct feedback to the user when CATTLE environment variables are not defined.
-- [ ] Provide validation on the image name and tag.  Currently expects full image name. Should probably just be the tag name like the --tag implies.
