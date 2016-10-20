@@ -56,7 +56,8 @@ func (val *RegistryValidator) Validate(service *client.Service, opts UpgradeOpts
 	if opts.CodeTag != "" {
 
 		images = append(images, image{
-			launchConfigImage: service.SecondaryLaunchConfigs[0].(map[string]interface{})["ImageUuid"].(string),
+			// TODO: Why is the key lower case?
+			launchConfigImage: service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"].(string),
 			upgradeImage:      opts.CodeTag,
 		})
 	}

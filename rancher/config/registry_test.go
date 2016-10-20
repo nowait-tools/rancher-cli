@@ -27,7 +27,7 @@ func (client *FailedRegistryClient) Tags(repository string) (tags []string, err 
 
 func TestRegistryValidatorValidate(t *testing.T) {
 	lc := make(map[string]interface{})
-	lc["ImageUuid"] = "docker:image/name:1.0"
+	lc["imageUuid"] = "docker:image/name:1.0"
 	slcs := []interface{}{
 		lc,
 	}
