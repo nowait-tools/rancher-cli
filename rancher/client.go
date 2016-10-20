@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/nowait/rancher-cli/rancher/config"
@@ -202,24 +203,42 @@ func (cli *Client) UpgradeServiceWithNameLike(opts config.UpgradeOpts) error {
 
 func UpdateLaunchConfig(service *client.Service, opts config.UpgradeOpts) *client.ServiceUpgrade {
 	inSrvStrat := &client.InServiceUpgradeStrategy{
-		BatchSize:      1,
-		IntervalMillis: int64(opts.Interval) / (int64(math.Pow10(6))),
-		StartFirst:     true,
+		BatchSize:              1,
+		IntervalMillis:         int64(opts.Interval) / (int64(math.Pow10(6))),
+		StartFirst:             true,
+		LaunchConfig:           service.LaunchConfig,
+		SecondaryLaunchConfigs: service.SecondaryLaunchConfigs,
 	}
 
-	if opts.CodeTag != "" && opts.RuntimeTag == "" {
+	if opts.CodeTag != "" {
 
-		service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"] = fmt.Sprintf("docker:%s", opts.CodeTag)
+		lcImage := service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"].(string)
+		refs := strings.Split(opts.CodeTag, ":")
+		image := ""
+		switch len(refs) {
+		case 1:
+			first := strings.Index(lcImage, ":") + 1
+			pos := strings.LastIndex(lcImage, ":") + 1
+			image = lcImage[first:pos] + refs[0]
+		case 2:
+			image = opts.CodeTag
+		}
+		service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"] = fmt.Sprintf("docker:%s", image)
 		inSrvStrat.SecondaryLaunchConfigs = service.SecondaryLaunchConfigs
-	} else if opts.RuntimeTag != "" && opts.CodeTag == "" {
+	}
+	if opts.RuntimeTag != "" {
 
-		service.LaunchConfig.ImageUuid = fmt.Sprintf("docker:%s", opts.RuntimeTag)
-		inSrvStrat.LaunchConfig = service.LaunchConfig
-	} else if opts.RuntimeTag != "" && opts.CodeTag != "" {
-
-		service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"] = fmt.Sprintf("docker:%s", opts.CodeTag)
-		service.LaunchConfig.ImageUuid = fmt.Sprintf("docker:%s", opts.RuntimeTag)
-		inSrvStrat.SecondaryLaunchConfigs = service.SecondaryLaunchConfigs
+		refs := strings.Split(opts.RuntimeTag, ":")
+		image := ""
+		switch len(refs) {
+		case 1:
+			first := strings.Index(service.LaunchConfig.ImageUuid, ":") + 1
+			pos := strings.LastIndex(service.LaunchConfig.ImageUuid, ":") + 1
+			image = service.LaunchConfig.ImageUuid[first:pos] + refs[0]
+		case 2:
+			image = opts.RuntimeTag
+		}
+		service.LaunchConfig.ImageUuid = fmt.Sprintf("docker:%s", image)
 		inSrvStrat.LaunchConfig = service.LaunchConfig
 	}
 

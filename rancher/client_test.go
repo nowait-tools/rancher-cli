@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/imdario/mergo"
 	"github.com/kr/pretty"
 	"github.com/nowait/rancher-cli/rancher/config"
 	"github.com/rancher/go-rancher/client"
@@ -14,6 +16,14 @@ import (
 
 var serviceName = "name"
 var codeTag = "image-name:1.0"
+var defaultImageUuid = "docker:runtime/image:1.0"
+var defaultSlcImageUuid = "docker:code/image:1.0"
+
+var upgradedUpgradeOptsImage = "runtime/image:2.0"
+var upgradedCodeOpts = "code/image:2.0"
+
+var upgradedImageUuid = "docker:runtime/image:2.0"
+var upgradedSlcImageUuid = "docker:code/image:2.0"
 
 type NoopService struct{}
 
@@ -103,7 +113,7 @@ func (srv *SuccessfulService) List(opts *client.ListOpts) (*client.ServiceCollec
 		Data: []client.Service{
 			client.Service{
 				LaunchConfig: &client.LaunchConfig{
-					ImageUuid: "",
+					ImageUuid: defaultImageUuid,
 				},
 				SecondaryLaunchConfigs: []interface{}{
 					slc,
@@ -131,7 +141,7 @@ func (srv *UpgradeServiceService) ActionUpgrade(service *client.Service, upgrade
 	if !validServiceVersionUpgrade(upgrade) {
 		return nil, errors.New("upgrading service version failed")
 	}
-	return &client.Service{}, nil
+	return dummyService(), nil
 }
 
 type ServiceLikeName struct {
@@ -341,10 +351,8 @@ func TestWaitReturnsNilWhenServiceIsNoLongerTransitioning(t *testing.T) {
 func TestUpdateLaunchConfig(t *testing.T) {
 	expectedSlc := make(map[string]interface{})
 	expectedSlc["imageUuid"] = "docker:sample"
-	var expectedInterval int64 = 5
-	interval := time.Duration(expectedInterval)
-
-	emptyEnvs := make(map[string]interface{})
+	var expectedInterval int64 = 5000
+	interval := 5 * time.Second
 
 	expectedEnvs := make(map[string]interface{})
 	expectedEnvs["ENVIRONMENT"] = "prod"
@@ -354,74 +362,44 @@ func TestUpdateLaunchConfig(t *testing.T) {
 		Opts                   config.UpgradeOpts
 	}{
 		{
-			ExpectedServiceUpgrade: &client.ServiceUpgrade{
-				Resource: client.Resource{},
-				InServiceStrategy: &client.InServiceUpgradeStrategy{
-					BatchSize:      1,
-					IntervalMillis: expectedInterval,
-					StartFirst:     true,
-					LaunchConfig: &client.LaunchConfig{
-						ImageUuid:   "docker:sample",
-						Environment: emptyEnvs,
-					},
-				},
-			},
+			ExpectedServiceUpgrade: expectedServiceUpgrade(serviceUpgradeOverrides{
+				ImageUuid: upgradedImageUuid,
+				Interval:  expectedInterval,
+			}),
 			Opts: config.UpgradeOpts{
-				RuntimeTag: "sample",
+				RuntimeTag: upgradedUpgradeOptsImage,
 				Interval:   interval,
 			},
 		},
 		{
-			ExpectedServiceUpgrade: &client.ServiceUpgrade{
-				Resource: client.Resource{},
-				InServiceStrategy: &client.InServiceUpgradeStrategy{
-					BatchSize:      1,
-					IntervalMillis: expectedInterval,
-					StartFirst:     true,
-					SecondaryLaunchConfigs: []interface{}{
-						expectedSlc,
-					},
-				},
-			},
+			ExpectedServiceUpgrade: expectedServiceUpgrade(serviceUpgradeOverrides{
+				SlcImageUuid: upgradedSlcImageUuid,
+				Interval:     expectedInterval,
+			}),
 			Opts: config.UpgradeOpts{
-				CodeTag:  "sample",
+				CodeTag:  upgradedCodeOpts,
 				Interval: interval,
 			},
 		},
 		{
-			ExpectedServiceUpgrade: &client.ServiceUpgrade{
-				Resource: client.Resource{},
-				InServiceStrategy: &client.InServiceUpgradeStrategy{
-					BatchSize:      1,
-					IntervalMillis: expectedInterval,
-					StartFirst:     true,
-					LaunchConfig: &client.LaunchConfig{
-						ImageUuid:   "docker:sample",
-						Environment: emptyEnvs,
-					},
-					SecondaryLaunchConfigs: []interface{}{
-						expectedSlc,
-					},
-				},
-			},
+			ExpectedServiceUpgrade: expectedServiceUpgrade(serviceUpgradeOverrides{
+				ImageUuid:    upgradedImageUuid,
+				SlcImageUuid: upgradedSlcImageUuid,
+				Interval:     expectedInterval,
+			}),
 			Opts: config.UpgradeOpts{
-				RuntimeTag: "sample",
-				CodeTag:    "sample",
+				RuntimeTag: "2.0",
+				CodeTag:    "2.0",
 				Interval:   interval,
 			},
 		},
 		{
-			ExpectedServiceUpgrade: &client.ServiceUpgrade{
-				Resource: client.Resource{},
-				InServiceStrategy: &client.InServiceUpgradeStrategy{
-					BatchSize:      1,
-					IntervalMillis: expectedInterval,
-					StartFirst:     true,
-					LaunchConfig: &client.LaunchConfig{
-						Environment: expectedEnvs,
-					},
+			ExpectedServiceUpgrade: expectedServiceUpgrade(serviceUpgradeOverrides{
+				Environment: []string{
+					"ENVIRONMENT=prod",
 				},
-			},
+				Interval: expectedInterval,
+			}),
 			Opts: config.UpgradeOpts{
 				Envs: []string{
 					"ENVIRONMENT=prod",
@@ -461,16 +439,63 @@ func validServiceVersionUpgrade(upgrade *client.ServiceUpgrade) bool {
 
 func dummyService() *client.Service {
 	slc := make(map[string]interface{})
-	slc["imageUuid"] = ""
+	slc["imageUuid"] = defaultSlcImageUuid
 
 	envs := make(map[string]interface{})
 	return &client.Service{
 		LaunchConfig: &client.LaunchConfig{
-			ImageUuid:   "",
+			ImageUuid:   defaultImageUuid,
 			Environment: envs,
 		},
 		SecondaryLaunchConfigs: []interface{}{
 			slc,
+		},
+	}
+}
+
+type serviceUpgradeOverrides struct {
+	ImageUuid    string
+	Environment  []string
+	Interval     int64
+	SlcImageUuid string
+}
+
+func (overrides serviceUpgradeOverrides) environmentVariables() map[string]interface{} {
+	environment := make(map[string]interface{})
+	for _, env := range overrides.Environment {
+		splits := strings.Split(env, "=")
+		environment[splits[0]] = splits[1]
+	}
+	return environment
+}
+
+func expectedServiceUpgrade(overrides serviceUpgradeOverrides) *client.ServiceUpgrade {
+	defaults := serviceUpgradeOverrides{
+		ImageUuid:    defaultImageUuid,
+		Environment:  []string{},
+		Interval:     10000,
+		SlcImageUuid: defaultSlcImageUuid,
+	}
+
+	if err := mergo.Merge(&overrides, defaults); err != nil {
+		fmt.Printf("failed to merge structs: %v", err)
+	}
+
+	expectedSlc := make(map[string]interface{})
+	expectedSlc["imageUuid"] = overrides.SlcImageUuid
+	return &client.ServiceUpgrade{
+		Resource: client.Resource{},
+		InServiceStrategy: &client.InServiceUpgradeStrategy{
+			BatchSize:      1,
+			IntervalMillis: overrides.Interval,
+			StartFirst:     true,
+			LaunchConfig: &client.LaunchConfig{
+				ImageUuid:   overrides.ImageUuid,
+				Environment: overrides.environmentVariables(),
+			},
+			SecondaryLaunchConfigs: []interface{}{
+				expectedSlc,
+			},
 		},
 	}
 }

@@ -93,7 +93,6 @@ func TestRegistryValidatorValidate(t *testing.T) {
 				SecondaryLaunchConfigs: slcs,
 			},
 			Opts: UpgradeOpts{
-				// RuntimeTag: "2.0",
 				CodeTag: "2.0",
 			},
 			Validator: &RegistryValidator{
@@ -125,7 +124,6 @@ func TestRegistryValidatorValidate(t *testing.T) {
 				SecondaryLaunchConfigs: slcs,
 			},
 			Opts: UpgradeOpts{
-				// RuntimeTag: "2.0",
 				CodeTag: "3.0",
 			},
 			Validator: &RegistryValidator{
