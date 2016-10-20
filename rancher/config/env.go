@@ -26,9 +26,10 @@ func (val *EnvironmentValidator) getEnvs() ([]string, error) {
 	return keys, nil
 }
 
-func (val *EnvironmentValidator) Validate(lc *client.LaunchConfig) error {
+func (val *EnvironmentValidator) Validate(service *client.Service, opts UpgradeOpts) error {
 	missing := []string{}
 	envs, err := val.getEnvs()
+	lc := service.LaunchConfig
 
 	if err != nil {
 		return err

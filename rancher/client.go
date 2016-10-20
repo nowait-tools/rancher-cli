@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/nowait/rancher-cli/rancher/config"
@@ -21,17 +22,7 @@ var (
 
 type Client struct {
 	RancherClient *client.RancherClient
-	Validator     config.Validator
-}
-
-type UpgradeOpts struct {
-	Envs        []string
-	Wait        bool
-	ServiceLike string
-	Service     string
-	CodeTag     string
-	RuntimeTag  string
-	Interval    time.Duration
+	Validators    []config.Validator
 }
 
 type UpgradeResult struct {
@@ -51,18 +42,29 @@ func NewClient(cattleURL string, cattleAccessKey string, cattleSecretKey string,
 		return nil, err
 	}
 
+	registryValidator, err := config.NewRegistryValidator()
+
+	if err != nil {
+		return nil, err
+	}
+
 	if envFile != "" {
 		return &Client{
 			RancherClient: apiClient,
-			Validator: &config.EnvironmentValidator{
-				EnvFilePath: envFile,
+			Validators: []config.Validator{
+				registryValidator,
+				&config.EnvironmentValidator{
+					EnvFilePath: envFile,
+				},
 			},
 		}, nil
 
 	} else {
 		return &Client{
 			RancherClient: apiClient,
-			Validator:     &config.NoopValidator{},
+			Validators: []config.Validator{
+				registryValidator,
+			},
 		}, nil
 	}
 }
@@ -115,14 +117,14 @@ func (cli *Client) ServiceLikeName(likeName string) (services *client.ServiceCol
 	return
 }
 
-func (cli *Client) UpgradeService(opts UpgradeOpts) (*client.Service, error) {
+func (cli *Client) UpgradeService(opts config.UpgradeOpts) (*client.Service, error) {
 	service, err := cli.ServiceByName(opts.Service)
 
 	if err != nil {
 		return service, err
 	}
 
-	if err = cli.Validator.Validate(service.LaunchConfig); err != nil {
+	if err = cli.ValidateService(service, opts); err != nil {
 		return service, err
 	}
 
@@ -133,7 +135,7 @@ func (cli *Client) UpgradeService(opts UpgradeOpts) (*client.Service, error) {
 }
 
 // TODO: Simplify this method and test it
-func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
+func (cli *Client) UpgradeServiceWithNameLike(opts config.UpgradeOpts) error {
 	failed := false
 	services, err := cli.ServiceLikeName(opts.ServiceLike)
 
@@ -145,7 +147,7 @@ func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
 	upgradeErrs := make(chan UpgradeResult, serviceCount)
 
 	for _, service := range services.Data {
-		go func(srv client.Service, opts UpgradeOpts) {
+		go func(srv client.Service, opts config.UpgradeOpts) {
 			opts.Service = srv.Name
 			service, err := cli.UpgradeService(opts)
 
@@ -199,26 +201,44 @@ func (cli *Client) UpgradeServiceWithNameLike(opts UpgradeOpts) error {
 	return nil
 }
 
-func UpdateLaunchConfig(service *client.Service, opts UpgradeOpts) *client.ServiceUpgrade {
+func UpdateLaunchConfig(service *client.Service, opts config.UpgradeOpts) *client.ServiceUpgrade {
 	inSrvStrat := &client.InServiceUpgradeStrategy{
-		BatchSize:      1,
-		IntervalMillis: int64(opts.Interval) / (int64(math.Pow10(6))),
-		StartFirst:     true,
+		BatchSize:              1,
+		IntervalMillis:         int64(opts.Interval) / (int64(math.Pow10(6))),
+		StartFirst:             true,
+		LaunchConfig:           service.LaunchConfig,
+		SecondaryLaunchConfigs: service.SecondaryLaunchConfigs,
 	}
 
-	if opts.CodeTag != "" && opts.RuntimeTag == "" {
+	if opts.CodeTag != "" {
 
-		service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"] = fmt.Sprintf("docker:%s", opts.CodeTag)
+		lcImage := service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"].(string)
+		refs := strings.Split(opts.CodeTag, ":")
+		image := ""
+		switch len(refs) {
+		case 1:
+			first := strings.Index(lcImage, ":") + 1
+			pos := strings.LastIndex(lcImage, ":") + 1
+			image = lcImage[first:pos] + refs[0]
+		case 2:
+			image = opts.CodeTag
+		}
+		service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"] = fmt.Sprintf("docker:%s", image)
 		inSrvStrat.SecondaryLaunchConfigs = service.SecondaryLaunchConfigs
-	} else if opts.RuntimeTag != "" && opts.CodeTag == "" {
+	}
+	if opts.RuntimeTag != "" {
 
-		service.LaunchConfig.ImageUuid = fmt.Sprintf("docker:%s", opts.RuntimeTag)
-		inSrvStrat.LaunchConfig = service.LaunchConfig
-	} else if opts.RuntimeTag != "" && opts.CodeTag != "" {
-
-		service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"] = fmt.Sprintf("docker:%s", opts.CodeTag)
-		service.LaunchConfig.ImageUuid = fmt.Sprintf("docker:%s", opts.RuntimeTag)
-		inSrvStrat.SecondaryLaunchConfigs = service.SecondaryLaunchConfigs
+		refs := strings.Split(opts.RuntimeTag, ":")
+		image := ""
+		switch len(refs) {
+		case 1:
+			first := strings.Index(service.LaunchConfig.ImageUuid, ":") + 1
+			pos := strings.LastIndex(service.LaunchConfig.ImageUuid, ":") + 1
+			image = service.LaunchConfig.ImageUuid[first:pos] + refs[0]
+		case 2:
+			image = opts.RuntimeTag
+		}
+		service.LaunchConfig.ImageUuid = fmt.Sprintf("docker:%s", image)
 		inSrvStrat.LaunchConfig = service.LaunchConfig
 	}
 
@@ -236,7 +256,7 @@ func UpdateLaunchConfig(service *client.Service, opts UpgradeOpts) *client.Servi
 	}
 }
 
-func Wait(cli *Client, srv *client.Service, opts UpgradeOpts) error {
+func Wait(cli *Client, srv *client.Service, opts config.UpgradeOpts) error {
 	ch := make(chan error)
 	go func() {
 		<-time.After(opts.Interval * 20)
@@ -258,6 +278,16 @@ func Wait(cli *Client, srv *client.Service, opts UpgradeOpts) error {
 	}()
 
 	return <-ch
+}
+
+func (cli *Client) ValidateService(service *client.Service, opts config.UpgradeOpts) error {
+	for _, val := range cli.Validators {
+		if err := val.Validate(service, opts); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func getServiceLikeQuery(serviceName string) string {

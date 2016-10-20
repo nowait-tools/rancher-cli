@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/rancher/go-rancher/client"
@@ -21,12 +20,14 @@ func TestGetEnvsReturnsAllEnvsInEnvFile(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	cases := []struct {
-		LaunchConfig         *client.LaunchConfig
+		Service              *client.Service
 		EnvironmentValidator EnvironmentValidator
 		Error                error
 	}{
 		{
-			LaunchConfig: getLaunchConfigWithEnvs("ENV_1", "ENV_2", "ENV_3"),
+			Service: &client.Service{
+				LaunchConfig: getLaunchConfigWithEnvs("ENV_1", "ENV_2", "ENV_3"),
+			},
 			EnvironmentValidator: EnvironmentValidator{
 				EnvFilePath: "../../fixtures/.env",
 			},
@@ -34,7 +35,9 @@ func TestValidate(t *testing.T) {
 		},
 		{
 
-			LaunchConfig: getLaunchConfigWithEnvs("ENV_1"),
+			Service: &client.Service{
+				LaunchConfig: getLaunchConfigWithEnvs("ENV_1"),
+			},
 			EnvironmentValidator: EnvironmentValidator{
 				EnvFilePath: "../../fixtures/.env",
 			},
@@ -44,9 +47,8 @@ func TestValidate(t *testing.T) {
 
 	for _, test := range cases {
 
-		err := test.EnvironmentValidator.Validate(test.LaunchConfig)
+		err := test.EnvironmentValidator.Validate(test.Service, UpgradeOpts{})
 
-		fmt.Printf("error is %v\n", err)
 		if errorsNotEqual(err, test.Error) {
 			t.Errorf("validation error `%v` should match error expectation `%v`", err, test.Error)
 		}

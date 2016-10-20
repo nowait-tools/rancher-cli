@@ -1,13 +1,27 @@
 package config
 
-import "github.com/rancher/go-rancher/client"
+import (
+	"time"
+
+	"github.com/rancher/go-rancher/client"
+)
 
 type Validator interface {
-	Validate(lc *client.LaunchConfig) error
+	Validate(service *client.Service, opts UpgradeOpts) error
 }
 
 type NoopValidator struct{}
 
-func (val *NoopValidator) Validate(lc *client.LaunchConfig) error {
+func (val *NoopValidator) Validate(service *client.Service, opts UpgradeOpts) error {
 	return nil
+}
+
+type UpgradeOpts struct {
+	Envs        []string
+	Wait        bool
+	ServiceLike string
+	Service     string
+	CodeTag     string
+	RuntimeTag  string
+	Interval    time.Duration
 }
