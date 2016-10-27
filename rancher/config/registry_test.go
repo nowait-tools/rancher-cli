@@ -176,33 +176,18 @@ func TestRegistryValidatorValidate(t *testing.T) {
 	}
 }
 
-func TestValidateImageName(t *testing.T) {
-	tests := []struct {
-		Image      string
-		ShouldFail bool
-	}{
-		{
-			Image:      "valid/image:0.2",
-			ShouldFail: false,
-		},
-		{
-			// Tags cannot start with a period
-			Image:      "invalid/image:.0.2",
-			ShouldFail: true,
-		},
-		{
-			// Tag names should also be accepted
-			Image:      "0.2.0",
-			ShouldFail: false,
-		},
+func TestCachedRegistryClientTags(t *testing.T) {
+	repo := "repo"
+	cache := make(map[string][]string)
+	cache[repo] = []string{"1.0", "2.0"}
+	client := &CachedRegistryClient{
+		Cache:          cache,
+		RegistryClient: &FailedRegistryClient{},
 	}
 
-	for _, test := range tests {
+	_, err := client.Tags(repo)
 
-		_, err := validateImageName(test.Image)
-
-		if (!test.ShouldFail && err != nil) || (test.ShouldFail && err == nil) {
-			t.Errorf("test failed")
-		}
+	if err != nil {
+		t.Errorf("client should be retrieving the information for the cache")
 	}
 }

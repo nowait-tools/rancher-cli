@@ -26,6 +26,28 @@ type RegistryClient interface {
 	Tags(repository string) (tags []string, err error)
 }
 
+type CachedRegistryClient struct {
+	Cache          map[string][]string
+	RegistryClient RegistryClient
+}
+
+func (cache *CachedRegistryClient) Tags(repository string) (tags []string, err error) {
+	if _, ok := cache.Cache[repository]; ok {
+		return cache.Cache[repository], nil
+	}
+
+	return cache.RegistryClient.Tags(repository)
+}
+
+func NewCachedRegistryClient(registryUrl, username, password string) {
+    cache := make(map[string][]string)
+	client, err := registry.New(registryUrl, username, password)
+    return  &CachedRegistryClient{
+	RegistryClient: client,
+	Cache: cache,
+    }, err
+}
+
 type image struct {
 	launchConfigImage string
 	upgradeImage      string
@@ -39,7 +61,9 @@ func NewRegistryValidator() (*RegistryValidator, error) {
 	}
 
 	return &RegistryValidator{
-		RegistryClient: client,
+		RegistryClient: CachedRegistryClient{
+		    RegistryClient: client,
+		    Cache,
 	}, nil
 }
 
@@ -56,7 +80,6 @@ func (val *RegistryValidator) Validate(service *client.Service, opts UpgradeOpts
 	if opts.CodeTag != "" {
 
 		images = append(images, image{
-			// TODO: Why is the key lower case?
 			launchConfigImage: service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"].(string),
 			upgradeImage:      opts.CodeTag,
 		})
@@ -67,7 +90,7 @@ func (val *RegistryValidator) Validate(service *client.Service, opts UpgradeOpts
 
 func (val *RegistryValidator) imageExistsInRegistry(images []image) error {
 	for _, image := range images {
-		ref, err := validateImageName(image.upgradeImage)
+		ref, err := reference.Parse(image.upgradeImage)
 
 		if err != nil {
 			return err
@@ -100,16 +123,6 @@ func (val *RegistryValidator) imageExistsInRegistry(images []image) error {
 
 	}
 	return nil
-}
-
-func validateImageName(image string) (reference.Reference, error) {
-	ref, err := reference.Parse(image)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return ref, nil
 }
 
 // Given a LaunchConfig.ImageUuid of the form docker:image/name:tag
