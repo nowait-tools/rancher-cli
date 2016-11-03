@@ -1,20 +1,11 @@
 package cmd
 
 import (
-	"os"
 	"time"
 
 	"github.com/nowait/rancher-cli/rancher"
 	"github.com/nowait/rancher-cli/rancher/config"
 	"github.com/urfave/cli"
-)
-
-var (
-	cattleUrl       = os.Getenv("CATTLE_URL")
-	cattleAccessKey = os.Getenv("CATTLE_ACCESS_KEY")
-	cattleSecret    = os.Getenv("CATTLE_SECRET_KEY")
-
-	defaultUpgradeInterval = 10 * time.Second
 )
 
 func ServiceCommand() cli.Command {

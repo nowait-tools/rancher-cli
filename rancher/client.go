@@ -1,13 +1,17 @@
 package rancher
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"io/ioutil"
 	"math"
+	"net/http"
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/nowait/rancher-cli/rancher/config"
 	"github.com/rancher/go-rancher/client"
 )
@@ -132,6 +136,117 @@ func (cli *Client) UpgradeService(opts config.UpgradeOpts) (*client.Service, err
 	service, err = cli.RancherClient.Service.ActionUpgrade(service, serviceUpgrade)
 
 	return service, err
+}
+
+// Clone the Rancher Project.  A project in rancher's api terms is equivalent to an environment.  And an environment is
+// equivalent to a stack.
+func (cli *Client) CloneProject(opts config.EnvUpgradeOpts) error {
+	projects, err := cli.RancherClient.Project.List(&client.ListOpts{})
+
+	if err != nil {
+		return err
+	}
+
+	log.Debugf("Found %d projects", len(projects.Data))
+
+	projMapping := struct {
+		SourceProjectId string
+		TargetProjectId string
+	}{}
+	// Use continue after finding matching project so that the opts.SourceEnv != opts.TargetEnv
+	for _, project := range projects.Data {
+		if project.Name == opts.SourceEnv {
+			log.Debugf("Matched project %s with Id: %s", project.Name, project.Id)
+			projMapping.SourceProjectId = project.Id
+			continue
+		}
+
+		if project.Name == opts.TargetEnv {
+			log.Debugf("Matched project %s with Id %s", project.Name, project.Id)
+			projMapping.TargetProjectId = project.Id
+			continue
+		}
+	}
+
+	if projMapping.SourceProjectId == "" || projMapping.TargetProjectId == "" {
+		return errors.New(fmt.Sprintf("Could not find both source [%s] and target [%s] environment", opts.SourceEnv, opts.TargetEnv))
+	}
+
+	log.Debugf("Source project id %s target id %s", projMapping.SourceProjectId, projMapping.TargetProjectId)
+
+	// Filter environments by correct project id and ensure they are active
+	filters := make(map[string]interface{})
+	filters["accountId_eq"] = projMapping.SourceProjectId
+	filters["state"] = "active"
+	envs, err := cli.RancherClient.Environment.List(&client.ListOpts{
+		Filters: filters,
+	})
+
+	if err != nil {
+		return errors.New(fmt.Sprintf("Failed to find stacks for project with error %v", err))
+	}
+
+	log.Debugf("Found %d stacks, cloning into environment %s", len(envs.Data), opts.SourceEnv)
+
+	httpClient := http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	for _, env := range envs.Data {
+		newEnv := client.Environment{}
+		dockerCompose, rancherCompose, err := cli.GetComposeConfigFromEnv(&env)
+
+		if err != nil {
+			return err
+		}
+
+		newEnv.DockerCompose = dockerCompose
+		newEnv.RancherCompose = rancherCompose
+		newEnv.Name = env.Name
+
+		buf := bytes.Buffer{}
+		err = json.NewEncoder(&buf).Encode(newEnv)
+
+		if err != nil {
+			return err
+		}
+
+		req, err := http.NewRequest("POST", "https://rancher.toolswait.com/v1/projects/"+projMapping.TargetProjectId+"/environments", &buf)
+		req.SetBasicAuth("A165FDCBF813CEB8BA55", "g9dryY4pZLfF8Nmd8U8CSBEJXHcLhmd1p57UEKiT")
+		req.Header.Add("Accept", "application/json")
+		req.Header.Add("Content-Type", "application/json")
+
+		if err != nil {
+			return err
+		}
+
+		res, err := httpClient.Do(req)
+
+		if err != nil {
+			return err
+		}
+
+		_, err = ioutil.ReadAll(res.Body)
+
+		fmt.Printf("response status code %d", res.StatusCode)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
+}
+
+func (c *Client) GetComposeConfigFromEnv(env *client.Environment) (string, string, error) {
+
+	composeConfig, err := c.RancherClient.Environment.ActionExportconfig(env, &client.ComposeConfigInput{})
+
+	if err != nil {
+		log.Errorf("Failed to get compose config with error: %v", err)
+	}
+
+	return composeConfig.DockerComposeConfig, composeConfig.RancherComposeConfig, err
 }
 
 // TODO: Simplify this method and test it

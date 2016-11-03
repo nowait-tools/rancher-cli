@@ -11,6 +11,7 @@ import (
 	"github.com/imdario/mergo"
 	"github.com/kr/pretty"
 	"github.com/nowait/rancher-cli/rancher/config"
+	"github.com/nowait/rancher-cli/rancher/mocks"
 	"github.com/rancher/go-rancher/client"
 )
 
@@ -415,6 +416,136 @@ func TestUpdateLaunchConfig(t *testing.T) {
 		if !reflect.DeepEqual(actual, test.ExpectedServiceUpgrade) {
 			t.Errorf("failure for test case %d", index)
 			fmt.Printf("actual: %#v \n\n expected: %#v \n\n Diff: %v", actual, test.ExpectedServiceUpgrade, pretty.Diff(actual, test.ExpectedServiceUpgrade))
+		}
+	}
+}
+
+func TestCloneProject(t *testing.T) {
+	// TODO: Update tests to verify that the correct error case is happening, could be somewhat dangeous to refactor the test cases without having some type of verifcation that the error cases are the correct one.
+
+	tests := []struct {
+		Description string
+		Client      Client
+		Opts        config.EnvUpgradeOpts
+		ShouldFail  bool
+	}{
+		{
+			Description: "When retrieving the projects from Rancher fails",
+			Client: Client{
+				RancherClient: &client.RancherClient{
+
+					Environment: &mocks.SuccessfulEnvironmentOperations{},
+					Project:     &mocks.FailedProjectOperations{},
+				},
+			},
+			Opts: config.EnvUpgradeOpts{
+				SourceEnv: mocks.ProjectOneName,
+				TargetEnv: mocks.ProjectTwoName,
+			},
+			ShouldFail: true,
+		},
+		{
+			Description: "When source environment not found in Rancher",
+			Client: Client{
+				RancherClient: &client.RancherClient{
+
+					Environment: &mocks.SuccessfulEnvironmentOperations{},
+					Project:     &mocks.PartialProjectOperations{},
+				},
+			},
+			Opts: config.EnvUpgradeOpts{
+				SourceEnv: "not found",
+				TargetEnv: mocks.ProjectTwoName,
+			},
+			ShouldFail: true,
+		},
+		{
+			Description: "When target environment not found in Rancher",
+			Client: Client{
+				RancherClient: &client.RancherClient{
+
+					Environment: &mocks.SuccessfulEnvironmentOperations{},
+					Project:     &mocks.PartialProjectOperations{},
+				},
+			},
+			Opts: config.EnvUpgradeOpts{
+				SourceEnv: mocks.ProjectOneName,
+				TargetEnv: "not found",
+			},
+			ShouldFail: true,
+		},
+		{
+			Description: "When using same source and target environments",
+			Client: Client{
+				RancherClient: &client.RancherClient{
+
+					Environment: &mocks.SuccessfulEnvironmentOperations{},
+					Project:     &mocks.PartialProjectOperations{},
+				},
+			},
+			Opts: config.EnvUpgradeOpts{
+				SourceEnv: mocks.ProjectOneName,
+				TargetEnv: mocks.ProjectOneName,
+			},
+			ShouldFail: true,
+		},
+		{
+			Description: "When listing the environments in Rancher fails",
+			Client: Client{
+				RancherClient: &client.RancherClient{
+
+					Environment: &mocks.FailedListEnvironmentOperations{},
+					Project:     &mocks.SuccessfulProjectOperations{},
+				},
+			},
+			Opts: config.EnvUpgradeOpts{
+				SourceEnv: mocks.ProjectOneName,
+				TargetEnv: mocks.ProjectTwoName,
+			},
+			ShouldFail: true,
+		},
+		{
+			Description: "When creating the Rancher environment fails",
+			Client: Client{
+				RancherClient: &client.RancherClient{
+
+					Environment: &mocks.FailedCreateEnvironmentOperations{},
+					Project:     &mocks.SuccessfulProjectOperations{},
+				},
+			},
+			Opts: config.EnvUpgradeOpts{
+				SourceEnv: mocks.ProjectOneName,
+				TargetEnv: mocks.ProjectTwoName,
+			},
+			ShouldFail: true,
+		},
+		{
+			Description: "Successful clone of environment",
+			Client: Client{
+				RancherClient: &client.RancherClient{
+
+					Environment: &mocks.SuccessfulEnvironmentOperations{},
+					Project:     &mocks.SuccessfulProjectOperations{},
+				},
+			},
+			Opts: config.EnvUpgradeOpts{
+				SourceEnv: mocks.ProjectOneName,
+				TargetEnv: mocks.ProjectTwoName,
+			},
+			ShouldFail: false,
+		},
+	}
+
+	for index, test := range tests {
+
+		err := test.Client.CloneProject(test.Opts)
+
+		if test.ShouldFail && err == nil {
+			t.Errorf("Test case %d failed, expected error but received nil", index)
+		}
+
+		if !test.ShouldFail && err != nil {
+			t.Errorf("Test case %d failed, received error %v", index, err)
 		}
 	}
 }
