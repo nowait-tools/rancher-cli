@@ -8,21 +8,36 @@ import (
 	"github.com/rancher/go-rancher/client"
 )
 
+var (
+	sampleTags = []string{"1.0", "2.0"}
+
+	failedToRetrieveTags = errors.New("failed to retrieve tags")
+)
+
 type NoopRegistryClient struct{}
 
 func (client *NoopRegistryClient) Tags(repository string) (tags []string, err error) {
-	return []string{
-		"1.0",
-		"2.0",
-	}, nil
+	return sampleTags, nil
 }
 
 type FailedRegistryClient struct{}
 
-var failedToRetrieveTags = errors.New("failed to retrieve tags")
-
 func (client *FailedRegistryClient) Tags(repository string) (tags []string, err error) {
 	return nil, failedToRetrieveTags
+}
+
+// This registry client will return Tags for the first attempt but will fail on subsequent calls.  This is used for testing that the cached registry client reads from its internal cache rather than making another request for tags.
+type unreliableRegsitryClient struct {
+	count int
+}
+
+func (client *unreliableRegsitryClient) Tags(repository string) (tags []string, err error) {
+	client.count++
+	if client.count == 2 {
+		return nil, failedToRetrieveTags
+	}
+
+	return sampleTags, nil
 }
 
 func TestRegistryValidatorValidate(t *testing.T) {
@@ -176,33 +191,25 @@ func TestRegistryValidatorValidate(t *testing.T) {
 	}
 }
 
-func TestValidateImageName(t *testing.T) {
-	tests := []struct {
-		Image      string
-		ShouldFail bool
-	}{
-		{
-			Image:      "valid/image:0.2",
-			ShouldFail: false,
-		},
-		{
-			// Tags cannot start with a period
-			Image:      "invalid/image:.0.2",
-			ShouldFail: true,
-		},
-		{
-			// Tag names should also be accepted
-			Image:      "0.2.0",
-			ShouldFail: false,
+func TestCachedRegsitryClient(t *testing.T) {
+	repo := "repo"
+	cache := make(map[string][]string)
+	client := &cachedRegistryClient{
+		cache: cache,
+		registryClient: &unreliableRegsitryClient{
+			count: 0,
 		},
 	}
 
-	for _, test := range tests {
+	_, err := client.Tags(repo)
 
-		_, err := validateImageName(test.Image)
+	if err != nil {
+		t.Errorf("client failed while reading from registry")
+	}
 
-		if (!test.ShouldFail && err != nil) || (test.ShouldFail && err == nil) {
-			t.Errorf("test failed")
-		}
+	_, err = client.Tags(repo)
+
+	if err != nil {
+		t.Errorf("client failed while reading from the cache")
 	}
 }

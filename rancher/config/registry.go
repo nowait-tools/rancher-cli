@@ -26,13 +26,39 @@ type RegistryClient interface {
 	Tags(repository string) (tags []string, err error)
 }
 
+type cachedRegistryClient struct {
+	cache          map[string][]string
+	registryClient RegistryClient
+}
+
+func (cache *cachedRegistryClient) Tags(repository string) (tags []string, err error) {
+	if _, ok := cache.cache[repository]; ok {
+		return cache.cache[repository], nil
+	}
+
+	tags, err = cache.registryClient.Tags(repository)
+
+	cache.cache[repository] = tags
+
+	return
+}
+
+func newCachedRegistryClient(registryUrl, username, password string) (RegistryClient, error) {
+	cache := make(map[string][]string)
+	client, err := registry.New(registryUrl, username, password)
+	return &cachedRegistryClient{
+		registryClient: client,
+		cache:          cache,
+	}, err
+}
+
 type image struct {
 	launchConfigImage string
 	upgradeImage      string
 }
 
 func NewRegistryValidator() (*RegistryValidator, error) {
-	client, err := registry.New(registryUrl, username, password)
+	client, err := newCachedRegistryClient(registryUrl, username, password)
 
 	if err != nil {
 		return nil, err
@@ -56,7 +82,6 @@ func (val *RegistryValidator) Validate(service *client.Service, opts UpgradeOpts
 	if opts.CodeTag != "" {
 
 		images = append(images, image{
-			// TODO: Why is the key lower case?
 			launchConfigImage: service.SecondaryLaunchConfigs[0].(map[string]interface{})["imageUuid"].(string),
 			upgradeImage:      opts.CodeTag,
 		})
@@ -67,7 +92,7 @@ func (val *RegistryValidator) Validate(service *client.Service, opts UpgradeOpts
 
 func (val *RegistryValidator) imageExistsInRegistry(images []image) error {
 	for _, image := range images {
-		ref, err := validateImageName(image.upgradeImage)
+		ref, err := reference.Parse(image.upgradeImage)
 
 		if err != nil {
 			return err
@@ -100,16 +125,6 @@ func (val *RegistryValidator) imageExistsInRegistry(images []image) error {
 
 	}
 	return nil
-}
-
-func validateImageName(image string) (reference.Reference, error) {
-	ref, err := reference.Parse(image)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return ref, nil
 }
 
 // Given a LaunchConfig.ImageUuid of the form docker:image/name:tag
