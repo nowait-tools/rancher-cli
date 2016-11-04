@@ -10,7 +10,7 @@ import (
 
 func main() {
 	app := cli.NewApp()
-	app.Version = "0.3.0-rc5"
+	app.Version = "0.3.0"
 	app.Authors = []cli.Author{
 		cli.Author{
 			Name:  "Nowait",
