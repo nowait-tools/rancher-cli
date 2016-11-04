@@ -26,29 +26,29 @@ type RegistryClient interface {
 	Tags(repository string) (tags []string, err error)
 }
 
-type CachedRegistryClient struct {
-	Cache          map[string][]string
-	RegistryClient RegistryClient
+type cachedRegistryClient struct {
+	cache          map[string][]string
+	registryClient RegistryClient
 }
 
-func (cache *CachedRegistryClient) Tags(repository string) (tags []string, err error) {
-	if _, ok := cache.Cache[repository]; ok {
-		return cache.Cache[repository], nil
+func (cache *cachedRegistryClient) Tags(repository string) (tags []string, err error) {
+	if _, ok := cache.cache[repository]; ok {
+		return cache.cache[repository], nil
 	}
 
-	tags, err = cache.RegistryClient.Tags(repository)
+	tags, err = cache.registryClient.Tags(repository)
 
-	cache.Cache[repository] = tags
+	cache.cache[repository] = tags
 
 	return
 }
 
-func NewCachedRegistryClient(registryUrl, username, password string) (RegistryClient, error) {
+func newCachedRegistryClient(registryUrl, username, password string) (RegistryClient, error) {
 	cache := make(map[string][]string)
 	client, err := registry.New(registryUrl, username, password)
-	return &CachedRegistryClient{
-		RegistryClient: client,
-		Cache:          cache,
+	return &cachedRegistryClient{
+		registryClient: client,
+		cache:          cache,
 	}, err
 }
 
@@ -58,7 +58,7 @@ type image struct {
 }
 
 func NewRegistryValidator() (*RegistryValidator, error) {
-	client, err := NewCachedRegistryClient(registryUrl, username, password)
+	client, err := newCachedRegistryClient(registryUrl, username, password)
 
 	if err != nil {
 		return nil, err

@@ -26,11 +26,12 @@ func (client *FailedRegistryClient) Tags(repository string) (tags []string, err 
 	return nil, failedToRetrieveTags
 }
 
-type UnreliableRegsitryClient struct {
+// This registry client will return Tags for the first attempt but will fail on subsequent calls.  This is used for testing that the cached registry client reads from its internal cache rather than making another request for tags.
+type unreliableRegsitryClient struct {
 	count int
 }
 
-func (client *UnreliableRegsitryClient) Tags(repository string) (tags []string, err error) {
+func (client *unreliableRegsitryClient) Tags(repository string) (tags []string, err error) {
 	client.count++
 	if client.count == 2 {
 		return nil, failedToRetrieveTags
@@ -193,9 +194,9 @@ func TestRegistryValidatorValidate(t *testing.T) {
 func TestCachedRegsitryClient(t *testing.T) {
 	repo := "repo"
 	cache := make(map[string][]string)
-	client := &CachedRegistryClient{
-		Cache: cache,
-		RegistryClient: &UnreliableRegsitryClient{
+	client := &cachedRegistryClient{
+		cache: cache,
+		registryClient: &unreliableRegsitryClient{
 			count: 0,
 		},
 	}
@@ -203,12 +204,12 @@ func TestCachedRegsitryClient(t *testing.T) {
 	_, err := client.Tags(repo)
 
 	if err != nil {
-		t.Errorf("client should be retrieving the information for the cache")
+		t.Errorf("client failed while reading from registry")
 	}
 
 	_, err = client.Tags(repo)
 
 	if err != nil {
-		t.Errorf("client should be retrieving the information for the cache")
+		t.Errorf("client failed while reading from the cache")
 	}
 }
