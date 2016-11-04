@@ -12,113 +12,99 @@ var (
 	CreateEnvironmentError  = errors.New("Failed to create environments for prjoect")
 )
 
-type FailedListEnvironmentOperations struct{}
+// TODO: Need to clean up this mess
+type NoopEnvironmentOperations struct{}
+
+func (env *NoopEnvironmentOperations) Create(opts *client.Environment) (*client.Environment, error) {
+	return nil, nil
+}
+func (env *NoopEnvironmentOperations) Update(existing *client.Environment, updates interface{}) (*client.Environment, error) {
+	return nil, nil
+}
+func (env *NoopEnvironmentOperations) ById(id string) (*client.Environment, error) {
+	return nil, nil
+}
+func (env *NoopEnvironmentOperations) Delete(container *client.Environment) error {
+	return nil
+}
+
+func (env *NoopEnvironmentOperations) ActionActivateservices(*client.Environment) (*client.Environment, error) {
+	return nil, nil
+}
+
+func (env *NoopEnvironmentOperations) ActionAddoutputs(*client.Environment, *client.AddOutputsInput) (*client.Environment, error) {
+	return nil, nil
+}
+
+func (env *NoopEnvironmentOperations) ActionCancelrollback(*client.Environment) (*client.Environment, error) {
+	return nil, nil
+}
+
+func (env *NoopEnvironmentOperations) ActionCancelupgrade(*client.Environment) (*client.Environment, error) {
+	return nil, nil
+}
+
+func (env *NoopEnvironmentOperations) ActionCreate(*client.Environment) (*client.Environment, error) {
+	return nil, nil
+}
+
+func (env *NoopEnvironmentOperations) ActionDeactivateservices(*client.Environment) (*client.Environment, error) {
+	return nil, nil
+}
+
+func (env *NoopEnvironmentOperations) ActionError(*client.Environment) (*client.Environment, error) {
+	return nil, nil
+}
+
+func (env *NoopEnvironmentOperations) ActionExportconfig(*client.Environment, *client.ComposeConfigInput) (*client.ComposeConfig, error) {
+	return nil, ActionExportconfigError
+}
+
+func (env *NoopEnvironmentOperations) ActionFinishupgrade(*client.Environment) (*client.Environment, error) {
+	return nil, nil
+}
+
+func (env *NoopEnvironmentOperations) ActionRemove(*client.Environment) (*client.Environment, error) {
+	return nil, nil
+}
+
+func (env *NoopEnvironmentOperations) ActionRollback(*client.Environment) (*client.Environment, error) {
+	return nil, nil
+}
+
+func (env *NoopEnvironmentOperations) ActionUpdate(*client.Environment) (*client.Environment, error) {
+	return nil, nil
+}
+
+func (env *NoopEnvironmentOperations) ActionUpgrade(*client.Environment, *client.EnvironmentUpgrade) (*client.Environment, error) {
+	return nil, nil
+}
+
+type FailedListEnvironmentOperations struct {
+	NoopEnvironmentOperations
+}
 
 func (env *FailedListEnvironmentOperations) List(opts *client.ListOpts) (*client.EnvironmentCollection, error) {
 	return nil, ListEnvironmentsError
 }
-func (env *FailedListEnvironmentOperations) Create(opts *client.Environment) (*client.Environment, error) {
-	return nil, nil
-}
-func (env *FailedListEnvironmentOperations) Update(existing *client.Environment, updates interface{}) (*client.Environment, error) {
-	return nil, nil
-}
-func (env *FailedListEnvironmentOperations) ById(id string) (*client.Environment, error) {
-	return nil, nil
-}
-func (env *FailedListEnvironmentOperations) Delete(container *client.Environment) error {
-	return nil
-}
-
-func (env *FailedListEnvironmentOperations) ActionActivateservices(*client.Environment) (*client.Environment, error) {
-	return nil, nil
-}
-
-func (env *FailedListEnvironmentOperations) ActionAddoutputs(*client.Environment, *client.AddOutputsInput) (*client.Environment, error) {
-	return nil, nil
-}
-
-func (env *FailedListEnvironmentOperations) ActionCancelrollback(*client.Environment) (*client.Environment, error) {
-	return nil, nil
-}
-
-func (env *FailedListEnvironmentOperations) ActionCancelupgrade(*client.Environment) (*client.Environment, error) {
-	return nil, nil
-}
-
-func (env *FailedListEnvironmentOperations) ActionCreate(*client.Environment) (*client.Environment, error) {
-	return nil, nil
-}
-
-func (env *FailedListEnvironmentOperations) ActionDeactivateservices(*client.Environment) (*client.Environment, error) {
-	return nil, nil
-}
-
-func (env *FailedListEnvironmentOperations) ActionError(*client.Environment) (*client.Environment, error) {
-	return nil, nil
-}
-
-func (env *FailedListEnvironmentOperations) ActionExportconfig(*client.Environment, *client.ComposeConfigInput) (*client.ComposeConfig, error) {
-	return nil, ActionExportconfigError
-}
-
-func (env *FailedListEnvironmentOperations) ActionFinishupgrade(*client.Environment) (*client.Environment, error) {
-	return nil, nil
-}
-
-func (env *FailedListEnvironmentOperations) ActionRemove(*client.Environment) (*client.Environment, error) {
-	return nil, nil
-}
-
-func (env *FailedListEnvironmentOperations) ActionRollback(*client.Environment) (*client.Environment, error) {
-	return nil, nil
-}
-
-func (env *FailedListEnvironmentOperations) ActionUpdate(*client.Environment) (*client.Environment, error) {
-	return nil, nil
-}
-
-func (env *FailedListEnvironmentOperations) ActionUpgrade(*client.Environment, *client.EnvironmentUpgrade) (*client.Environment, error) {
-	return nil, nil
-}
 
 type SuccessfulEnvironmentOperations struct {
-	FailedListEnvironmentOperations
+	NoopEnvironmentOperations
+	SuccessfulList
 }
 
 type FailedCreateEnvironmentOperations struct {
-	FailedListEnvironmentOperations
+	NoopEnvironmentOperations
+	SuccessfulList
 }
 
 type FailedActionExportconfigEnvironmentOperations struct {
-	FailedListEnvironmentOperations
+	SuccessfulList
+	NoopEnvironmentOperations
 }
 
 func (env *FailedActionExportconfigEnvironmentOperations) ActionExportconfig(*client.Environment, *client.ComposeConfigInput) (*client.ComposeConfig, error) {
 	return nil, ActionExportconfigError
-}
-
-func (env *FailedCreateEnvironmentOperations) List(opts *client.ListOpts) (*client.EnvironmentCollection, error) {
-	return &client.EnvironmentCollection{
-		Data: []client.Environment{
-			client.Environment{},
-		},
-	}, nil
-}
-
-func (env *FailedActionExportconfigEnvironmentOperations) List(opts *client.ListOpts) (*client.EnvironmentCollection, error) {
-	// Enforce that accountId_eq must be set to valid account string
-	if validAccountid(opts.Filters) {
-		// Should return EnvironmentCollection that has no results
-		return &client.EnvironmentCollection{
-			Data: []client.Environment{},
-		}, nil
-	}
-	return &client.EnvironmentCollection{
-		Data: []client.Environment{
-			client.Environment{},
-		},
-	}, nil
 }
 
 func (env *FailedCreateEnvironmentOperations) ActionExportconfig(*client.Environment, *client.ComposeConfigInput) (*client.ComposeConfig, error) {
@@ -132,7 +118,9 @@ func (env *FailedCreateEnvironmentOperations) Create(opts *client.Environment) (
 	return nil, CreateEnvironmentError
 }
 
-func (env *SuccessfulEnvironmentOperations) List(opts *client.ListOpts) (*client.EnvironmentCollection, error) {
+type SuccessfulList struct{}
+
+func (env *SuccessfulList) List(opts *client.ListOpts) (*client.EnvironmentCollection, error) {
 	// Enforce that accountId_eq must be set to valid account string
 	if validAccountid(opts.Filters) {
 		// Should return EnvironmentCollection that has no results
