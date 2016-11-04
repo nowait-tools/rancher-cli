@@ -1,8 +1,9 @@
 package rancher
 
 import (
-	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
@@ -11,19 +12,26 @@ import (
 	"github.com/imdario/mergo"
 	"github.com/kr/pretty"
 	"github.com/nowait/rancher-cli/rancher/config"
+	"github.com/nowait/rancher-cli/rancher/mocks"
+	"github.com/pkg/errors"
 	"github.com/rancher/go-rancher/client"
 )
 
-var serviceName = "name"
-var codeTag = "image-name:1.0"
-var defaultImageUuid = "docker:runtime/image:1.0"
-var defaultSlcImageUuid = "docker:code/image:1.0"
+var (
+	accessKey           = "access key"
+	secretKey           = "secret key"
+	accountId           = "1a10"
+	serviceName         = "name"
+	codeTag             = "image-name:1.0"
+	defaultImageUuid    = "docker:runtime/image:1.0"
+	defaultSlcImageUuid = "docker:code/image:1.0"
 
-var upgradedUpgradeOptsImage = "runtime/image:2.0"
-var upgradedCodeOpts = "code/image:2.0"
+	upgradedUpgradeOptsImage = "runtime/image:2.0"
+	upgradedCodeOpts         = "code/image:2.0"
 
-var upgradedImageUuid = "docker:runtime/image:2.0"
-var upgradedSlcImageUuid = "docker:code/image:2.0"
+	upgradedImageUuid    = "docker:runtime/image:2.0"
+	upgradedSlcImageUuid = "docker:code/image:2.0"
+)
 
 type NoopService struct{}
 
@@ -419,6 +427,194 @@ func TestUpdateLaunchConfig(t *testing.T) {
 	}
 }
 
+func TestCloneProject(t *testing.T) {
+	tests := []struct {
+		Description string
+		Client      Client
+		Opts        config.EnvUpgradeOpts
+		Error       error
+	}{
+		{
+			Description: "When retrieving the projects from Rancher fails",
+			Client: Client{
+				RancherClient: &client.RancherClient{
+
+					Environment: &mocks.SuccessfulEnvironmentOperations{},
+					Project:     &mocks.FailedProjectOperations{},
+				},
+			},
+			Opts: config.EnvUpgradeOpts{
+				SourceEnv: mocks.ProjectOneName,
+				TargetEnv: mocks.ProjectTwoName,
+			},
+			Error: mocks.ProjectListError,
+		},
+		{
+			Description: "When source environment not found in Rancher",
+			Client: Client{
+				RancherClient: &client.RancherClient{
+
+					Environment: &mocks.SuccessfulEnvironmentOperations{},
+					Project:     &mocks.PartialProjectOperations{},
+				},
+			},
+			Opts: config.EnvUpgradeOpts{
+				SourceEnv: "not found",
+				TargetEnv: mocks.ProjectTwoName,
+			},
+			Error: environmentCloneSourceTargetError,
+		},
+		{
+			Description: "When target environment not found in Rancher",
+			Client: Client{
+				RancherClient: &client.RancherClient{
+
+					Environment: &mocks.SuccessfulEnvironmentOperations{},
+					Project:     &mocks.PartialProjectOperations{},
+				},
+			},
+			Opts: config.EnvUpgradeOpts{
+				SourceEnv: mocks.ProjectOneName,
+				TargetEnv: "not found",
+			},
+			Error: environmentCloneSourceTargetError,
+		},
+		{
+			Description: "When using same source and target environments",
+			Client: Client{
+				RancherClient: &client.RancherClient{
+
+					Environment: &mocks.SuccessfulEnvironmentOperations{},
+					Project:     &mocks.PartialProjectOperations{},
+				},
+			},
+			Opts: config.EnvUpgradeOpts{
+				SourceEnv: mocks.ProjectOneName,
+				TargetEnv: mocks.ProjectOneName,
+			},
+			Error: environmentCloneSourceTargetError,
+		},
+		{
+			Description: "When listing the environments in Rancher fails",
+			Client: Client{
+				RancherClient: &client.RancherClient{
+
+					Environment: &mocks.FailedListEnvironmentOperations{},
+					Project:     &mocks.SuccessfulProjectOperations{},
+				},
+			},
+			Opts: config.EnvUpgradeOpts{
+				SourceEnv: mocks.ProjectOneName,
+				TargetEnv: mocks.ProjectTwoName,
+			},
+			Error: mocks.ListEnvironmentsError,
+		},
+		{
+			Description: "When retrieving the compose config fails",
+			Client: Client{
+				RancherClient: &client.RancherClient{
+
+					Environment: &mocks.FailedActionExportconfigEnvironmentOperations{},
+					Project:     &mocks.SuccessfulProjectOperations{},
+				},
+			},
+			Opts: config.EnvUpgradeOpts{
+				SourceEnv: mocks.ProjectOneName,
+				TargetEnv: mocks.ProjectTwoName,
+			},
+			Error: mocks.ActionExportconfigError,
+		},
+		{
+			Description: "When creating the Rancher environment fails",
+			Client: Client{
+				RancherClient: &client.RancherClient{
+
+					Environment: &mocks.FailedCreateEnvironmentOperations{},
+					Project:     &mocks.SuccessfulProjectOperations{},
+				},
+			},
+			Opts: config.EnvUpgradeOpts{
+				SourceEnv: mocks.ProjectOneName,
+				TargetEnv: mocks.ProjectTwoName,
+			},
+			Error: mocks.CreateEnvironmentError,
+		},
+		{
+			Description: "Successful clone of environment",
+			Client: Client{
+				RancherClient: &client.RancherClient{
+
+					Environment: &mocks.SuccessfulEnvironmentOperations{},
+					Project:     &mocks.SuccessfulProjectOperations{},
+				},
+			},
+			Opts: config.EnvUpgradeOpts{
+				SourceEnv: mocks.ProjectOneName,
+				TargetEnv: mocks.ProjectTwoName,
+			},
+			Error: nil,
+		},
+	}
+
+	for index, test := range tests {
+
+		err := errors.Cause(test.Client.CloneProject(test.Opts))
+
+		if test.Error != err {
+			t.Errorf("Test case %d failed, expected error %v but received %v", index, test.Error, err)
+		}
+	}
+}
+
+// TODO: Add context for failing tests so error output is helpful
+func TestEnvironmentCreate(t *testing.T) {
+	tests := []struct {
+		ResponseCode int
+		Description  string
+		ShouldFail   bool
+	}{
+		{
+			ResponseCode: 201,
+			Description:  "Successful creation of a new environment in an existing project",
+			ShouldFail:   false,
+		},
+		{
+			ResponseCode: 405,
+			Description:  "Failed creation of environment",
+			ShouldFail:   true,
+		},
+	}
+
+	for index, test := range tests {
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			validateCreateRequest(rw, req)
+
+			rw.WriteHeader(test.ResponseCode)
+		}))
+
+		envClient := EnvironmentClient{
+			accessKey:  accessKey,
+			secretKey:  secretKey,
+			rancherUrl: server.URL,
+		}
+
+		_, err := envClient.Create(&client.Environment{
+			AccountId: accountId,
+		})
+
+		if test.ShouldFail && err == nil {
+			t.Errorf("test case %d should have failed", index)
+		}
+
+		if !test.ShouldFail && err != nil {
+			t.Errorf("test case %d failed", index)
+		}
+
+		server.Close()
+	}
+}
+
 func TestUpgradeServiceWithName(t *testing.T) {
 
 }
@@ -497,5 +693,25 @@ func expectedServiceUpgrade(overrides serviceUpgradeOverrides) *client.ServiceUp
 				expectedSlc,
 			},
 		},
+	}
+}
+
+func validateCreateRequest(rw http.ResponseWriter, req *http.Request) {
+
+	baseUrl := fmt.Sprintf("/projects/%s/environments", accountId)
+
+	if req.Method != "POST" || baseUrl != req.URL.String() {
+		rw.WriteHeader(400)
+	}
+
+	contentType := "application/json"
+	if req.Header.Get("Content-Type") != contentType || req.Header.Get("Accept") != contentType {
+		rw.WriteHeader(400)
+	}
+
+	username, password, ok := req.BasicAuth()
+
+	if !ok || (username != accessKey && password != secretKey) {
+		rw.WriteHeader(400)
 	}
 }

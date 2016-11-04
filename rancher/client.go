@@ -1,14 +1,19 @@
 package rancher
 
 import (
-	"errors"
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"log"
+	"io/ioutil"
 	"math"
+	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/nowait/rancher-cli/rancher/config"
+	"github.com/pkg/errors"
 	"github.com/rancher/go-rancher/client"
 )
 
@@ -17,7 +22,8 @@ const (
 )
 
 var (
-	upgradePollInterval = 150 * time.Millisecond
+	upgradePollInterval               = 150 * time.Millisecond
+	environmentCloneSourceTargetError = errors.New("Could not find both source and target environments")
 )
 
 type Client struct {
@@ -40,6 +46,13 @@ func NewClient(cattleURL string, cattleAccessKey string, cattleSecretKey string,
 
 	if err != nil {
 		return nil, err
+	}
+
+	apiClient.Environment = &EnvironmentClient{
+		apiClient.Environment,
+		cattleAccessKey,
+		cattleSecretKey,
+		cattleURL,
 	}
 
 	registryValidator, err := config.NewRegistryValidator()
@@ -132,6 +145,81 @@ func (cli *Client) UpgradeService(opts config.UpgradeOpts) (*client.Service, err
 	service, err = cli.RancherClient.Service.ActionUpgrade(service, serviceUpgrade)
 
 	return service, err
+}
+
+// Clone the Rancher Project.  A project in rancher's api terms is equivalent to an environment.  And an environment is
+// equivalent to a stack.
+func (cli *Client) CloneProject(opts config.EnvUpgradeOpts) error {
+	projects, err := cli.RancherClient.Project.List(&client.ListOpts{})
+
+	if err != nil {
+		return err
+	}
+
+	log.Debugf("Found %d projects", len(projects.Data))
+
+	projMapping := struct {
+		SourceProjectId string
+		TargetProjectId string
+	}{
+		SourceProjectId: "",
+		TargetProjectId: "",
+	}
+	// Use continue after finding matching project so that the opts.SourceProjectId != opts.TargetProjectId
+	for _, project := range projects.Data {
+		if project.Name == opts.SourceEnv {
+			log.Debugf("Matched project %s with Id: %s", project.Name, project.Id)
+			projMapping.SourceProjectId = project.Id
+			continue
+		}
+
+		if project.Name == opts.TargetEnv {
+			log.Debugf("Matched project %s with Id %s", project.Name, project.Id)
+			projMapping.TargetProjectId = project.Id
+			continue
+		}
+	}
+
+	if projMapping.SourceProjectId == "" || projMapping.TargetProjectId == "" {
+		return environmentCloneSourceTargetError
+	}
+
+	log.Debugf("Source project id %s target id %s", projMapping.SourceProjectId, projMapping.TargetProjectId)
+
+	// Filter environments by correct project id and ensure they are active
+	filters := make(map[string]interface{})
+	filters["accountId_eq"] = projMapping.SourceProjectId
+	filters["state"] = "active"
+	envs, err := cli.RancherClient.Environment.List(&client.ListOpts{
+		Filters: filters,
+	})
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to find stacks for project")
+	}
+
+	log.Debugf("Found %d stacks, cloning into environment %s", len(envs.Data), opts.TargetEnv)
+
+	for _, env := range envs.Data {
+		composeConfig, err := cli.RancherClient.Environment.ActionExportconfig(&env, &client.ComposeConfigInput{})
+
+		if err != nil {
+			return err
+		}
+
+		_, err = cli.RancherClient.Environment.Create(&client.Environment{
+			AccountId:      projMapping.TargetProjectId,
+			DockerCompose:  composeConfig.DockerComposeConfig,
+			RancherCompose: composeConfig.RancherComposeConfig,
+			Name:           env.Name,
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
 }
 
 // TODO: Simplify this method and test it
@@ -292,4 +380,52 @@ func (cli *Client) ValidateService(service *client.Service, opts config.UpgradeO
 
 func getServiceLikeQuery(serviceName string) string {
 	return serviceName + "%"
+}
+
+type EnvironmentClient struct {
+	client.EnvironmentOperations
+	accessKey  string
+	secretKey  string
+	rancherUrl string
+}
+
+func (env *EnvironmentClient) Create(opts *client.Environment) (*client.Environment, error) {
+	buf := bytes.Buffer{}
+	err := json.NewEncoder(&buf).Encode(*opts)
+	url, err := url.Parse(env.rancherUrl)
+
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient := http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	createUrl := url.String() + "/projects/" + opts.AccountId + "/environments"
+
+	req, err := http.NewRequest("POST", createUrl, &buf)
+	req.SetBasicAuth(env.accessKey, env.secretKey)
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := httpClient.Do(req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode != 201 {
+		return nil, errors.New(fmt.Sprintf("Creating environment returned %d response code", res.StatusCode))
+	}
+
+	_, err = ioutil.ReadAll(res.Body)
+
+	return nil, err
 }

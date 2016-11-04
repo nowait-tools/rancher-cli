@@ -25,3 +25,8 @@ type UpgradeOpts struct {
 	RuntimeTag  string
 	Interval    time.Duration
 }
+
+type EnvUpgradeOpts struct {
+	SourceEnv string
+	TargetEnv string
+}

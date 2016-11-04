@@ -2,7 +2,7 @@
 
 PWD := `pwd`
 IMAGE_NAME := rancher-cli
-IMAGE_TAG := 0.3.0-rc4
+IMAGE_TAG := 0.3.0-rc5
 BIN := rancher-cli
 PACKAGE_PATH := github.com/nowait/rancher-cli
 
