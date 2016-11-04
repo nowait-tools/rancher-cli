@@ -39,13 +39,13 @@ func (cache *CachedRegistryClient) Tags(repository string) (tags []string, err e
 	return cache.RegistryClient.Tags(repository)
 }
 
-func NewCachedRegistryClient(registryUrl, username, password string) {
-    cache := make(map[string][]string)
+func NewCachedRegistryClient(registryUrl, username, password string) (RegistryClient, error) {
+	cache := make(map[string][]string)
 	client, err := registry.New(registryUrl, username, password)
-    return  &CachedRegistryClient{
-	RegistryClient: client,
-	Cache: cache,
-    }, err
+	return &CachedRegistryClient{
+		RegistryClient: client,
+		Cache:          cache,
+	}, err
 }
 
 type image struct {
@@ -54,16 +54,14 @@ type image struct {
 }
 
 func NewRegistryValidator() (*RegistryValidator, error) {
-	client, err := registry.New(registryUrl, username, password)
+	client, err := NewCachedRegistryClient(registryUrl, username, password)
 
 	if err != nil {
 		return nil, err
 	}
 
 	return &RegistryValidator{
-		RegistryClient: CachedRegistryClient{
-		    RegistryClient: client,
-		    Cache,
+		RegistryClient: client,
 	}, nil
 }
 
