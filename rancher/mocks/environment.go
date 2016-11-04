@@ -142,17 +142,25 @@ func (env *SuccessfulEnvironmentOperations) List(opts *client.ListOpts) (*client
 	}
 	return &client.EnvironmentCollection{
 		Data: []client.Environment{
-			client.Environment{},
+			client.Environment{
+				Name: "name",
+			},
 		},
 	}, nil
 }
 
 func (env *SuccessfulEnvironmentOperations) Create(opts *client.Environment) (*client.Environment, error) {
+	if opts.AccountId == "" || opts.DockerCompose == "" || opts.RancherCompose == "" || opts.Name == "" {
+		return nil, errors.New("Failed to create environment: accountId, docker compose, rancher compose or name empty string")
+	}
 	return opts, nil
 }
 
 func (env *SuccessfulEnvironmentOperations) ActionExportconfig(*client.Environment, *client.ComposeConfigInput) (*client.ComposeConfig, error) {
-	return &client.ComposeConfig{}, nil
+	return &client.ComposeConfig{
+		DockerComposeConfig:  "docker compose",
+		RancherComposeConfig: "rancher compose",
+	}, nil
 }
 
 func validAccountid(filters map[string]interface{}) bool {

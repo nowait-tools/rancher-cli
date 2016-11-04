@@ -201,19 +201,18 @@ func (cli *Client) CloneProject(opts config.EnvUpgradeOpts) error {
 	log.Debugf("Found %d stacks, cloning into environment %s", len(envs.Data), opts.TargetEnv)
 
 	for _, env := range envs.Data {
-		newEnv := &client.Environment{}
 		composeConfig, err := cli.RancherClient.Environment.ActionExportconfig(&env, &client.ComposeConfigInput{})
 
 		if err != nil {
 			return err
 		}
 
-		newEnv.AccountId = projMapping.TargetProjectId
-		newEnv.DockerCompose = composeConfig.DockerComposeConfig
-		newEnv.RancherCompose = composeConfig.RancherComposeConfig
-		newEnv.Name = env.Name
-
-		_, err = cli.RancherClient.Environment.Create(newEnv)
+		_, err = cli.RancherClient.Environment.Create(&client.Environment{
+			AccountId:      projMapping.TargetProjectId,
+			DockerCompose:  composeConfig.DockerComposeConfig,
+			RancherCompose: composeConfig.RancherComposeConfig,
+			Name:           env.Name,
+		})
 
 		if err != nil {
 			return err
@@ -390,7 +389,6 @@ type EnvironmentClient struct {
 	rancherUrl string
 }
 
-// TODO: Add test, ensure 201 response.  Also test out 405 response
 func (env *EnvironmentClient) Create(opts *client.Environment) (*client.Environment, error) {
 	buf := bytes.Buffer{}
 	err := json.NewEncoder(&buf).Encode(*opts)
