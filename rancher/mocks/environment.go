@@ -6,10 +6,16 @@ import (
 	"github.com/rancher/go-rancher/client"
 )
 
+var (
+	ActionExportconfigError = errors.New("Error exporting compose config")
+	ListEnvironmentsError   = errors.New("Failed to find environments for prjoect")
+	CreateEnvironmentError  = errors.New("Failed to create environments for prjoect")
+)
+
 type FailedListEnvironmentOperations struct{}
 
 func (env *FailedListEnvironmentOperations) List(opts *client.ListOpts) (*client.EnvironmentCollection, error) {
-	return nil, errors.New("Failed to get environments for project")
+	return nil, ListEnvironmentsError
 }
 func (env *FailedListEnvironmentOperations) Create(opts *client.Environment) (*client.Environment, error) {
 	return nil, nil
@@ -53,7 +59,7 @@ func (env *FailedListEnvironmentOperations) ActionError(*client.Environment) (*c
 }
 
 func (env *FailedListEnvironmentOperations) ActionExportconfig(*client.Environment, *client.ComposeConfigInput) (*client.ComposeConfig, error) {
-	return nil, nil
+	return nil, ActionExportconfigError
 }
 
 func (env *FailedListEnvironmentOperations) ActionFinishupgrade(*client.Environment) (*client.Environment, error) {
@@ -84,6 +90,14 @@ type FailedCreateEnvironmentOperations struct {
 	FailedListEnvironmentOperations
 }
 
+type FailedActionExportconfigEnvironmentOperations struct {
+	FailedListEnvironmentOperations
+}
+
+func (env *FailedActionExportconfigEnvironmentOperations) ActionExportconfig(*client.Environment, *client.ComposeConfigInput) (*client.ComposeConfig, error) {
+	return nil, ActionExportconfigError
+}
+
 func (env *FailedCreateEnvironmentOperations) List(opts *client.ListOpts) (*client.EnvironmentCollection, error) {
 	return &client.EnvironmentCollection{
 		Data: []client.Environment{
@@ -92,8 +106,30 @@ func (env *FailedCreateEnvironmentOperations) List(opts *client.ListOpts) (*clie
 	}, nil
 }
 
+func (env *FailedActionExportconfigEnvironmentOperations) List(opts *client.ListOpts) (*client.EnvironmentCollection, error) {
+	// Enforce that accountId_eq must be set to valid account string
+	if validAccountid(opts.Filters) {
+		// Should return EnvironmentCollection that has no results
+		return &client.EnvironmentCollection{
+			Data: []client.Environment{},
+		}, nil
+	}
+	return &client.EnvironmentCollection{
+		Data: []client.Environment{
+			client.Environment{},
+		},
+	}, nil
+}
+
+func (env *FailedCreateEnvironmentOperations) ActionExportconfig(*client.Environment, *client.ComposeConfigInput) (*client.ComposeConfig, error) {
+	return &client.ComposeConfig{
+		DockerComposeConfig:  "",
+		RancherComposeConfig: "",
+	}, nil
+}
+
 func (env *FailedCreateEnvironmentOperations) Create(opts *client.Environment) (*client.Environment, error) {
-	return nil, errors.New("Failed to create environment")
+	return nil, CreateEnvironmentError
 }
 
 func (env *SuccessfulEnvironmentOperations) List(opts *client.ListOpts) (*client.EnvironmentCollection, error) {
@@ -113,6 +149,10 @@ func (env *SuccessfulEnvironmentOperations) List(opts *client.ListOpts) (*client
 
 func (env *SuccessfulEnvironmentOperations) Create(opts *client.Environment) (*client.Environment, error) {
 	return opts, nil
+}
+
+func (env *SuccessfulEnvironmentOperations) ActionExportconfig(*client.Environment, *client.ComposeConfigInput) (*client.ComposeConfig, error) {
+	return &client.ComposeConfig{}, nil
 }
 
 func validAccountid(filters map[string]interface{}) bool {

@@ -6,15 +6,19 @@ import (
 	"github.com/rancher/go-rancher/client"
 )
 
-var ProjectOneName = "one"
-var ProjectTwoName = "two"
-var ProjectOne = &client.Project{Name: ProjectOneName}
-var ProjectTwo = &client.Project{Name: ProjectTwoName}
+var (
+	ProjectOneName = "one"
+	ProjectTwoName = "two"
+	ProjectOne     = &client.Project{Resource: client.Resource{Id: ProjectOneName}, Name: ProjectOneName}
+	ProjectTwo     = &client.Project{Resource: client.Resource{Id: ProjectTwoName}, Name: ProjectTwoName}
+
+	ProjectListError = errors.New("Failed to list projects from Rancher api")
+)
 
 type FailedProjectOperations struct{}
 
 func (proj *FailedProjectOperations) List(opts *client.ListOpts) (*client.ProjectCollection, error) {
-	return nil, errors.New("Failed to list projects from Rancher api")
+	return nil, ProjectListError
 }
 
 func (proj *FailedProjectOperations) Create(opts *client.Project) (*client.Project, error) {

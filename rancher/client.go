@@ -3,16 +3,17 @@ package rancher
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"math"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/nowait/rancher-cli/rancher/config"
+	"github.com/pkg/errors"
 	"github.com/rancher/go-rancher/client"
 )
 
@@ -21,7 +22,8 @@ const (
 )
 
 var (
-	upgradePollInterval = 150 * time.Millisecond
+	upgradePollInterval               = 150 * time.Millisecond
+	environmentCloneSourceTargetError = errors.New("Could not find both source and target environments")
 )
 
 type Client struct {
@@ -44,6 +46,13 @@ func NewClient(cattleURL string, cattleAccessKey string, cattleSecretKey string,
 
 	if err != nil {
 		return nil, err
+	}
+
+	apiClient.Environment = &EnvironmentClient{
+		apiClient.Environment,
+		cattleAccessKey,
+		cattleSecretKey,
+		cattleURL,
 	}
 
 	registryValidator, err := config.NewRegistryValidator()
@@ -152,8 +161,11 @@ func (cli *Client) CloneProject(opts config.EnvUpgradeOpts) error {
 	projMapping := struct {
 		SourceProjectId string
 		TargetProjectId string
-	}{}
-	// Use continue after finding matching project so that the opts.SourceEnv != opts.TargetEnv
+	}{
+		SourceProjectId: "",
+		TargetProjectId: "",
+	}
+	// Use continue after finding matching project so that the opts.SourceProjectId != opts.TargetProjectId
 	for _, project := range projects.Data {
 		if project.Name == opts.SourceEnv {
 			log.Debugf("Matched project %s with Id: %s", project.Name, project.Id)
@@ -169,7 +181,7 @@ func (cli *Client) CloneProject(opts config.EnvUpgradeOpts) error {
 	}
 
 	if projMapping.SourceProjectId == "" || projMapping.TargetProjectId == "" {
-		return errors.New(fmt.Sprintf("Could not find both source [%s] and target [%s] environment", opts.SourceEnv, opts.TargetEnv))
+		return environmentCloneSourceTargetError
 	}
 
 	log.Debugf("Source project id %s target id %s", projMapping.SourceProjectId, projMapping.TargetProjectId)
@@ -183,52 +195,25 @@ func (cli *Client) CloneProject(opts config.EnvUpgradeOpts) error {
 	})
 
 	if err != nil {
-		return errors.New(fmt.Sprintf("Failed to find stacks for project with error %v", err))
+		return errors.Wrap(err, "Failed to find stacks for project")
 	}
 
-	log.Debugf("Found %d stacks, cloning into environment %s", len(envs.Data), opts.SourceEnv)
-
-	httpClient := http.Client{
-		Timeout: 5 * time.Second,
-	}
+	log.Debugf("Found %d stacks, cloning into environment %s", len(envs.Data), opts.TargetEnv)
 
 	for _, env := range envs.Data {
-		newEnv := client.Environment{}
-		dockerCompose, rancherCompose, err := cli.GetComposeConfigFromEnv(&env)
+		newEnv := &client.Environment{}
+		composeConfig, err := cli.RancherClient.Environment.ActionExportconfig(&env, &client.ComposeConfigInput{})
 
 		if err != nil {
 			return err
 		}
 
-		newEnv.DockerCompose = dockerCompose
-		newEnv.RancherCompose = rancherCompose
+		newEnv.AccountId = projMapping.TargetProjectId
+		newEnv.DockerCompose = composeConfig.DockerComposeConfig
+		newEnv.RancherCompose = composeConfig.RancherComposeConfig
 		newEnv.Name = env.Name
 
-		buf := bytes.Buffer{}
-		err = json.NewEncoder(&buf).Encode(newEnv)
-
-		if err != nil {
-			return err
-		}
-
-		req, err := http.NewRequest("POST", "https://rancher.toolswait.com/v1/projects/"+projMapping.TargetProjectId+"/environments", &buf)
-		req.SetBasicAuth("A165FDCBF813CEB8BA55", "g9dryY4pZLfF8Nmd8U8CSBEJXHcLhmd1p57UEKiT")
-		req.Header.Add("Accept", "application/json")
-		req.Header.Add("Content-Type", "application/json")
-
-		if err != nil {
-			return err
-		}
-
-		res, err := httpClient.Do(req)
-
-		if err != nil {
-			return err
-		}
-
-		_, err = ioutil.ReadAll(res.Body)
-
-		fmt.Printf("response status code %d", res.StatusCode)
+		_, err = cli.RancherClient.Environment.Create(newEnv)
 
 		if err != nil {
 			return err
@@ -236,17 +221,6 @@ func (cli *Client) CloneProject(opts config.EnvUpgradeOpts) error {
 	}
 
 	return err
-}
-
-func (c *Client) GetComposeConfigFromEnv(env *client.Environment) (string, string, error) {
-
-	composeConfig, err := c.RancherClient.Environment.ActionExportconfig(env, &client.ComposeConfigInput{})
-
-	if err != nil {
-		log.Errorf("Failed to get compose config with error: %v", err)
-	}
-
-	return composeConfig.DockerComposeConfig, composeConfig.RancherComposeConfig, err
 }
 
 // TODO: Simplify this method and test it
@@ -407,4 +381,53 @@ func (cli *Client) ValidateService(service *client.Service, opts config.UpgradeO
 
 func getServiceLikeQuery(serviceName string) string {
 	return serviceName + "%"
+}
+
+type EnvironmentClient struct {
+	client.EnvironmentOperations
+	accessKey  string
+	secretKey  string
+	rancherUrl string
+}
+
+// TODO: Add test, ensure 201 response.  Also test out 405 response
+func (env *EnvironmentClient) Create(opts *client.Environment) (*client.Environment, error) {
+	buf := bytes.Buffer{}
+	err := json.NewEncoder(&buf).Encode(*opts)
+	url, err := url.Parse(env.rancherUrl)
+
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient := http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	createUrl := url.String() + "/projects/" + opts.AccountId + "/environments"
+
+	req, err := http.NewRequest("POST", createUrl, &buf)
+	req.SetBasicAuth(env.accessKey, env.secretKey)
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := httpClient.Do(req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode != 201 {
+		return nil, errors.New(fmt.Sprintf("Creating environment returned %d response code", res.StatusCode))
+	}
+
+	_, err = ioutil.ReadAll(res.Body)
+
+	return nil, err
 }
