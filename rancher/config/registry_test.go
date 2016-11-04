@@ -8,21 +8,35 @@ import (
 	"github.com/rancher/go-rancher/client"
 )
 
+var (
+	sampleTags = []string{"1.0", "2.0"}
+
+	failedToRetrieveTags = errors.New("failed to retrieve tags")
+)
+
 type NoopRegistryClient struct{}
 
 func (client *NoopRegistryClient) Tags(repository string) (tags []string, err error) {
-	return []string{
-		"1.0",
-		"2.0",
-	}, nil
+	return sampleTags, nil
 }
 
 type FailedRegistryClient struct{}
 
-var failedToRetrieveTags = errors.New("failed to retrieve tags")
-
 func (client *FailedRegistryClient) Tags(repository string) (tags []string, err error) {
 	return nil, failedToRetrieveTags
+}
+
+type UnreliableRegsitryClient struct {
+	count int
+}
+
+func (client *UnreliableRegsitryClient) Tags(repository string) (tags []string, err error) {
+	client.count++
+	if client.count == 2 {
+		return nil, failedToRetrieveTags
+	}
+
+	return sampleTags, nil
 }
 
 func TestRegistryValidatorValidate(t *testing.T) {
@@ -176,16 +190,23 @@ func TestRegistryValidatorValidate(t *testing.T) {
 	}
 }
 
-func TestCachedRegistryClientTags(t *testing.T) {
+func TestCachedRegsitryClient(t *testing.T) {
 	repo := "repo"
 	cache := make(map[string][]string)
-	cache[repo] = []string{"1.0", "2.0"}
 	client := &CachedRegistryClient{
-		Cache:          cache,
-		RegistryClient: &FailedRegistryClient{},
+		Cache: cache,
+		RegistryClient: &UnreliableRegsitryClient{
+			count: 0,
+		},
 	}
 
 	_, err := client.Tags(repo)
+
+	if err != nil {
+		t.Errorf("client should be retrieving the information for the cache")
+	}
+
+	_, err = client.Tags(repo)
 
 	if err != nil {
 		t.Errorf("client should be retrieving the information for the cache")

@@ -36,7 +36,11 @@ func (cache *CachedRegistryClient) Tags(repository string) (tags []string, err e
 		return cache.Cache[repository], nil
 	}
 
-	return cache.RegistryClient.Tags(repository)
+	tags, err = cache.RegistryClient.Tags(repository)
+
+	cache.Cache[repository] = tags
+
+	return
 }
 
 func NewCachedRegistryClient(registryUrl, username, password string) (RegistryClient, error) {
