@@ -1,0 +1,12 @@
+ran_cli_stretch() {
+    docker run \
+        --rm \
+        -e "CATTLE_URL=https://rancher.toolswait.com/v1" \
+        -e "CATTLE_ACCESS_KEY=$STRETCH_CATTLE_ACCESS_KEY" \
+        -e "CATTLE_SECRET_KEY=$STRETCH_CATTLE_SECRET_KEY" \
+        -e "DOCKER_REGISTRY_USERNAME=$DOCKER_REGISTRY_USERNAME" \
+        -e "DOCKER_REGISTRY_PASSWORD=$DOCKER_REGISTRY_PASSWORD" \
+        -e "DOCKER_REGISTRY_URL=$DOCKER_REGISTRY_URL" \
+        nowait/rancher-cli:0.3.0 \
+        $@
+}
