@@ -4,7 +4,7 @@ import (
 	"os"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/nowait/rancher-cli/cmd"
+	"github.com/nowait-tools/rancher-cli/cmd"
 	"github.com/urfave/cli"
 )
 

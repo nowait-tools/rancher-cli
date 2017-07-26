@@ -3,9 +3,10 @@ package cmd
 import (
 	"time"
 
-	"github.com/nowait/rancher-cli/rancher"
-	"github.com/nowait/rancher-cli/rancher/config"
+	"github.com/nowait-tools/rancher-cli/rancher"
+	"github.com/nowait-tools/rancher-cli/rancher/config"
 	"github.com/urfave/cli"
+	"log"
 )
 
 func ServiceCommand() cli.Command {
@@ -37,6 +38,10 @@ func ServiceCommand() cli.Command {
 					cli.StringFlag{
 						Name: "code-tag",
 					},
+					cli.StringFlag{
+						Name:  "repository",
+						Usage: "Specify the repository here if it is a non docker hub repo",
+					},
 					cli.Int64Flag{
 						Name:  "interval",
 						Usage: "Interval between starting new containers and stopping old ones",
@@ -57,6 +62,7 @@ func ServiceCommand() cli.Command {
 					},
 				},
 				Action: func(c *cli.Context) error {
+					log.Println("upgrade-finish")
 					client, err := rancher.NewClient(cattleUrl, cattleAccessKey, cattleSecret, "")
 
 					if err != nil {
@@ -71,7 +77,7 @@ func ServiceCommand() cli.Command {
 }
 
 func UpgradeAction(c *cli.Context) error {
-
+	log.Println("upgrade")
 	envFile := c.String("env-file")
 	env := c.StringSlice("env")
 
@@ -79,6 +85,7 @@ func UpgradeAction(c *cli.Context) error {
 		return err
 	}
 
+	log.Println("cattleUrl:", cattleUrl)
 	client, err := rancher.NewClient(cattleUrl, cattleAccessKey, cattleSecret, envFile)
 	if err != nil {
 		return err
@@ -95,13 +102,42 @@ func UpgradeAction(c *cli.Context) error {
 		Service:     c.String("service"),
 		CodeTag:     c.String("code-tag"),
 		RuntimeTag:  c.String("runtime-tag"),
+		Repository:  c.String("repository"),
 		Wait:        c.Bool("wait"),
 	}
 	if name := opts.ServiceLike; name != "" {
 		return client.UpgradeServiceWithNameLike(opts)
 	}
 
+	if opts.Service != "" {
+		WaitAndFinish(opts.Service, client)
+	}
 	_, err = client.UpgradeService(opts)
 
+	if err != nil {
+		return err
+	}
+	if opts.Wait && opts.Service != "" {
+		WaitAndFinish(opts.Service, client)
+	}
+	return err
+}
+
+// WaitAndFinish (requiredState active|upgraded)
+func WaitAndFinish(service string, client *rancher.Client) error {
+	for i := 0; i < 20; i++ {
+		svc, err := client.ServiceByName(service)
+		if err != nil {
+			return err
+		}
+		log.Printf("%s state: %s\n", service, svc.State)
+		if svc.State == "active" || svc.State == "upgraded" {
+			// attempting to do an upgrade just after this will fail, however, its simple just to rerun build.
+			break
+		}
+		time.Sleep(3 * time.Second)
+		i++
+	}
+	_, err := client.FinishServiceUpgrade(service)
 	return err
 }

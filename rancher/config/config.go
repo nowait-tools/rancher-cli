@@ -23,6 +23,7 @@ type UpgradeOpts struct {
 	Service     string
 	CodeTag     string
 	RuntimeTag  string
+	Repository  string
 	Interval    time.Duration
 }
 

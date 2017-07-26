@@ -9,6 +9,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/heroku/docker-registry-client/registry"
 	"github.com/rancher/go-rancher/client"
+	"log"
 )
 
 var (
@@ -58,6 +59,8 @@ type image struct {
 }
 
 func NewRegistryValidator() (*RegistryValidator, error) {
+	log.Println("registryUrl:", registryUrl)
+	log.Println("username:", username)
 	client, err := newCachedRegistryClient(registryUrl, username, password)
 
 	if err != nil {

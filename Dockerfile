@@ -1,8 +1,12 @@
-FROM golang:1.7-alpine
-MAINTAINER Nowait <devops@nowait.com>
+# build
+FROM golang:1.8-alpine AS build_env
+WORKDIR /go/src/github.com/nowait-tools/rancher-cli
+ADD  . .
+RUN  go build -x -o rancher-cli .
 
-WORKDIR /src
-COPY rancher-cli rancher-cli
+# runtime
+FROM alpine
+RUN apk --update add ca-certificates
+COPY --from=build_env /go/src/github.com/nowait-tools/rancher-cli /
 RUN chmod +x rancher-cli
-
-ENTRYPOINT ["/src/rancher-cli"]
+ENTRYPOINT ["/rancher-cli"]

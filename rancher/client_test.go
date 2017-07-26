@@ -11,8 +11,8 @@ import (
 
 	"github.com/imdario/mergo"
 	"github.com/kr/pretty"
-	"github.com/nowait/rancher-cli/rancher/config"
-	"github.com/nowait/rancher-cli/rancher/mocks"
+	"github.com/nowait-tools/rancher-cli/rancher/config"
+	"github.com/nowait-tools/rancher-cli/rancher/mocks"
 	"github.com/pkg/errors"
 	"github.com/rancher/go-rancher/client"
 )

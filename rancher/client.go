@@ -12,7 +12,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/nowait/rancher-cli/rancher/config"
+	"github.com/nowait-tools/rancher-cli/rancher/config"
 	"github.com/pkg/errors"
 	"github.com/rancher/go-rancher/client"
 )
@@ -325,6 +325,9 @@ func UpdateLaunchConfig(service *client.Service, opts config.UpgradeOpts) *clien
 			image = service.LaunchConfig.ImageUuid[first:pos] + refs[0]
 		case 2:
 			image = opts.RuntimeTag
+			if opts.Repository != "" {
+				image = fmt.Sprintf("%s/%s", opts.Repository, opts.RuntimeTag)
+			}
 		}
 		service.LaunchConfig.ImageUuid = fmt.Sprintf("docker:%s", image)
 		inSrvStrat.LaunchConfig = service.LaunchConfig

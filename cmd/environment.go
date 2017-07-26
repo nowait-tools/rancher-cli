@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/nowait/rancher-cli/rancher"
-	"github.com/nowait/rancher-cli/rancher/config"
+	"github.com/nowait-tools/rancher-cli/rancher"
+	"github.com/nowait-tools/rancher-cli/rancher/config"
 	"github.com/urfave/cli"
 )
 
